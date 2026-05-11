@@ -3,21 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TGN - Gestión de Flota</title>
+    <title>TGN - Gestión de Flota T70</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>CENTRO DE CONTROL <span>PLAN OHL</span></h1>
-        <div id="filters">
-            <button class="filter-btn active" onclick="filtrar('TODAS')">TODAS</button>
-            <button class="filter-btn" onclick="filtrar('M100')">M100</button>
-            <button class="filter-btn" onclick="filtrar('T70')">T70</button>
-            <button class="filter-btn" onclick="filtrar('T60')">T60</button>
-        </div>
-        <div id="status">INICIANDO...</div>
+        <h1>CENTRO DE CONTROL <span>FLOTA T70</span></h1>
+        <div id="status">INICIALIZANDO...</div>
     </header>
     
     <main>
@@ -27,7 +21,7 @@
         
         <section id="timeline-container">
             <div class="panel-header">
-                <h3>Cronograma Operativo Proyectado</h3>
+                <h3>Cronograma de Movimientos T70 (2026 - 2029)</h3>
             </div>
             
             <div id="gantt-wrapper">
