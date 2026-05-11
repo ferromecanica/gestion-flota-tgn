@@ -5,13 +5,13 @@ const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
 const coordenadasTGN = {
     "PUE": [-37.5835941, -68.4167814],
-    "COC": [-31.35, -64.4333333],
-    "LMR": [-25.2167, -64.9167],
-    "BEA": [-33.7547, -66.6436],
-    "CHA": [-33.3225, -62.0358],
-    "LCA": [-33.4243, -63.2956],
-    "TIO": [-31.3833, -62.8333],
-    "JER": [-32.55, -62.1167]
+    "COC": [-31.3500000, -64.4333333],
+    "LMR": [-25.2167000, -64.9167000],
+    "BEA": [-33.7547000, -66.6436000],
+    "CHA": [-33.3225000, -62.0358000],
+    "LCA": [-33.4243000, -63.2956000],
+    "TIO": [-31.3833000, -62.8333000],
+    "JER": [-32.5500000, -62.1167000]
 };
 
 let todosLosRegistros = [];
@@ -59,8 +59,7 @@ async function cargarDatos() {
             dibujarTodo(todosLosRegistros);
         }
     } catch (e) { 
-        statusEl.innerText = "FALLO CONEXIÓN AIRTABLE";
-        console.error(e);
+        statusEl.innerText = "FALLO CONEXIÓN";
     }
 }
 
@@ -84,7 +83,9 @@ function dibujarTodo(registros) {
             const ut = f["UT Limpia"] || "S/D";
             const sn = f["Turbina Texto"] || "S/N";
             const horas = f["Horas Actuales"] || "0";
+            const esMuleto = f["Es Muleto"] === true;
 
+            // 1. GANTT
             let fInicio = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
             let fFin = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
             
@@ -96,18 +97,29 @@ function dibujarTodo(registros) {
                 const width = ((fFin - fInicio) / totalRange) * viewportWidth;
                 const row = document.createElement('div');
                 row.className = 'timeline-row';
-                row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar" style="left: ${left}px; width: ${width}px;">${sn}</div></div>`;
+                row.innerHTML = `
+                    <div class="ut-label">${ut}</div>
+                    <div class="bar-box">
+                        <div class="bar ${esMuleto ? 'muleto' : ''}" 
+                             style="left: ${left}px; width: ${width}px;" 
+                             title="Modelo: ${f["Modelo"] || 'S/D'}">
+                            ${sn}
+                        </div>
+                    </div>`;
                 container.appendChild(row);
             }
 
+            // 2. MAPA
             const prefijoUT = ut.substring(0, 3);
             const coords = coordenadasTGN[prefijoUT];
             if (coords && !f["Fecha Fin"]) {
                 L.circleMarker(coords, {
-                    radius: 8, fillColor: "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.8
+                    radius: 8, 
+                    fillColor: esMuleto ? "#555" : "#E48A06", 
+                    color: "#fff", weight: 1, fillOpacity: 0.8
                 }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>Turbina: ${sn}<br><b>Horas: ${horas} h</b>`);
             }
-        } catch (err) { console.warn("Error en fila", err); }
+        } catch (err) { console.warn(err); }
     });
 }
 
