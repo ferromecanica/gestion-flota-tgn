@@ -3,15 +3,18 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
+// COORDENADAS OFICIALES (Actualizadas por Lucio)
 const coordenadasTGN = {
-    "PUE": [-37.5835941, -68.4167814],
-    "COC": [-31.3500000, -64.4333333],
-    "LMR": [-25.2167000, -64.9167000],
-    "BEA": [-33.7547000, -66.6436000],
-    "CHA": [-33.3225000, -62.0358000],
-    "LCA": [-33.4243000, -63.2956000],
-    "TIO": [-31.3833000, -62.8333000],
-    "JER": [-32.5500000, -62.1167000]
+    "LMR": [-35.10701111729368, -66.83017549362897],
+    "PUE": [-37.54775316810032, -67.73435632628639],
+    "COC": [-36.366345264914976, -67.07470531631624],
+    "BEA": [-33.7947278563908, -66.64557971271866],
+    "CHA": [-33.57661936089481, -65.10266988204269],
+    "LCA": [-33.324082475333874, -63.56042741471796],
+    "TIO": [-32.29040136421469, -63.2817489913925],
+    "JER": [-32.86882501340949, -61.07660895126634],
+    "PIC": [-23.411465030614657, -64.33378178052973],
+    "LUM": [-25.205707746680435, -64.94601401301017]
 };
 
 let todosLosRegistros = [];
@@ -43,20 +46,20 @@ async function cargarDatos() {
         const data = await response.json();
         if (data.records) {
             todosLosRegistros = data.records;
-            statusEl.innerText = `SISTEMA ONLINE: ${data.records.length} REGISTROS`;
+            statusEl.innerText = `SISTEMA ONLINE: ${data.records.length} EQUIPOS`;
             dibujarMapa(todosLosRegistros);
         }
-    } catch (e) { statusEl.innerText = "ERROR API"; }
+    } catch (e) { statusEl.innerText = "ERROR DE CONEXIÓN"; }
 }
 
 function showView(viewId, familia = null) {
-    // Actualizar botones de navegación
+    // Actualizar estados de botones nav
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    // Cambiar vistas
+    // Toggle de vistas
     document.querySelectorAll('.page-view').forEach(v => {
         v.classList.remove('active');
         v.classList.add('hidden');
@@ -71,7 +74,6 @@ function showView(viewId, familia = null) {
         const filtrados = todosLosRegistros.filter(r => r.fields["Familia"] === familia);
         dibujarGantt(filtrados);
         
-        // Centrar scroll en HOY
         setTimeout(() => {
             const hoy = new Date().getTime();
             const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
@@ -92,7 +94,13 @@ function dibujarMapa(registros) {
             const esMuleto = f["Es Muleto"] === true;
             L.circleMarker(coords, {
                 radius: 9, fillColor: esMuleto ? "#555" : "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>Turbina: ${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
+            }).addTo(markersGroup).bindPopup(`
+                <div style="font-family:'Inter'; font-size:12px;">
+                    <b style="color:#E48A06">${ut}</b><br>
+                    Turbina: ${f["Turbina Texto"]}<br>
+                    Horas: ${f["Horas Actuales"] || 0}
+                </div>
+            `);
         }
     });
 }
@@ -125,7 +133,11 @@ function dibujarGantt(registros) {
             const width = ((end - start) / totalRange) * viewportWidth;
             const row = document.createElement('div');
             row.className = 'timeline-row';
-            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
+            row.innerHTML = `
+                <div class="ut-label">${ut}</div>
+                <div class="bar-box">
+                    <div class="bar ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div>
+                </div>`;
             container.appendChild(row);
         }
     });
