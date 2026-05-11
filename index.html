@@ -11,8 +11,10 @@
 <body>
     <header>
         <h1>CENTRO DE CONTROL <span>PLAN OHL</span></h1>
-        <div id="status">Estableciendo conexión...</div>
+        <div id="status">Iniciando...</div>
     </header>
+    
+    <div id="debug-bar"></div>
 
     <main>
         <section id="map-container">
@@ -23,8 +25,9 @@
             <div class="panel-header">
                 <h3>Cronograma de Movimientos</h3>
             </div>
-            <div id="gantt"></div>
-            <canvas id="flowCanvas"></canvas>
+            <div id="gantt">
+                <p style="padding: 20px; color: #666;">Esperando datos de la flota...</p>
+            </div>
         </section>
     </main>
 
