@@ -11,10 +11,10 @@
 <body>
     <header>
         <h1>CENTRO DE CONTROL <span>PLAN OHL</span></h1>
-        <div id="status">Iniciando...</div>
+        <div id="status">CONECTANDO...</div>
     </header>
     
-    <div id="debug-bar"></div>
+    <div id="debug-bar">Cargando visualización...</div>
 
     <main>
         <section id="map-container">
@@ -23,11 +23,15 @@
         
         <section id="timeline-container">
             <div class="panel-header">
-                <h3>Cronograma de Movimientos</h3>
+                <h3>Cronograma de Movimientos (Proyección 2024-2027)</h3>
             </div>
-            <div id="gantt">
-                <p style="padding: 20px; color: #666;">Esperando datos de la flota...</p>
+            <div id="timeline-scale">
+                <div class="scale-item">2024</div>
+                <div class="scale-item">2025</div>
+                <div class="scale-item">2026</div>
+                <div class="scale-item">2027</div>
             </div>
+            <div id="gantt"></div>
         </section>
     </main>
 
