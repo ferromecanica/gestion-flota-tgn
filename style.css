@@ -1,7 +1,7 @@
 :root { 
     --ferro-orange: #E48A06;
-    --m100-color: #1e40af; /* Blue 800 */
-    --t60-color: #0d9488; /* Teal 600 */
+    --m100-color: #1e40af; 
+    --t60-color: #0d9488; 
 }
 
 .page-view { display: none; }
@@ -14,7 +14,6 @@
 }
 
 .leaflet-container { background: #0a0a0a !important; }
-
 #timeline-viewport { width: 1600px; }
 
 #today-line {
@@ -53,18 +52,13 @@
     white-space: nowrap; overflow: hidden;
 }
 
-/* COLORES POR FAMILIA */
-.bar-m100 { background: linear-gradient(90deg, var(--m100-color), #3b82f6); }
-.bar-t70 { background: linear-gradient(90deg, var(--ferro-orange), #ffae33); color: #000; }
-.bar-t60 { background: linear-gradient(90deg, var(--t60-color), #2dd4bf); }
+/* CLASES DE COLORES */
+.bar-m100 { background: linear-gradient(90deg, var(--m100-color), #3b82f6) !important; }
+.bar-t70 { background: linear-gradient(90deg, var(--ferro-orange), #ffae33) !important; color: #000 !important; }
+.bar-t60 { background: linear-gradient(90deg, var(--t60-color), #2dd4bf) !important; }
 
-/* MULETO (PRIORIDAD SOBRE EL RESTO) */
 .bar.muleto {
     background: linear-gradient(90deg, #333, #555) !important;
     color: #aaa !important;
     border: 1px solid #444;
 }
-
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--ferro-orange); }
