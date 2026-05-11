@@ -3,7 +3,6 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
-// COORDENADAS CORREGIDAS
 const coordenadasTGN = {
     "PUE": [-37.5835941, -68.4167814],
     "COC": [-31.3500000, -64.4333333],
@@ -28,7 +27,6 @@ function init() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Línea de HOY
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
     document.getElementById('today-line').style.left = hoyPos + 'px';
@@ -39,7 +37,9 @@ function init() {
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
     try {
-        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?view=${VIEW_ID}`);
+        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?view=${VIEW_ID}&cacheBuster=${Date.now()}`, {
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+        });
         const data = await response.json();
         if (data.records) {
             todosLosRegistros = data.records;
@@ -50,9 +50,21 @@ async function cargarDatos() {
 }
 
 function showView(viewId, familia = null) {
-    document.querySelectorAll('.page-view').forEach(v => v.classList.add('hidden'));
-    document.getElementById(viewId).classList.remove('hidden');
-    document.getElementById(viewId).classList.add('active');
+    // Actualizar botones de navegación
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
+    });
+
+    // Cambiar vistas
+    document.querySelectorAll('.page-view').forEach(v => {
+        v.classList.remove('active');
+        v.classList.add('hidden');
+    });
+    
+    const activeView = document.getElementById(viewId);
+    activeView.classList.remove('hidden');
+    activeView.classList.add('active');
 
     if (viewId === 'gantt-view') {
         document.getElementById('gantt-title').innerText = `PLAN OHL | FAMILIA ${familia}`;
@@ -60,9 +72,11 @@ function showView(viewId, familia = null) {
         dibujarGantt(filtrados);
         
         // Centrar scroll en HOY
-        const hoy = new Date().getTime();
-        const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
-        document.getElementById('gantt-wrapper').scrollLeft = hoyPos - 400;
+        setTimeout(() => {
+            const hoy = new Date().getTime();
+            const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
+            document.getElementById('gantt-wrapper').scrollLeft = hoyPos - 400;
+        }, 100);
     }
 }
 
@@ -77,10 +91,8 @@ function dibujarMapa(registros) {
         if (coords && !f["Fecha Fin"]) {
             const esMuleto = f["Es Muleto"] === true;
             L.circleMarker(coords, {
-                radius: esMuleto ? 6 : 9, 
-                fillColor: esMuleto ? "#555" : "#E48A06", 
-                color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>T: ${f["Turbina Texto"]}<br>H: ${f["Horas Actuales"] || 0}`);
+                radius: 9, fillColor: esMuleto ? "#555" : "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.9
+            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>Turbina: ${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
         }
     });
 }
@@ -89,7 +101,6 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     container.innerHTML = '';
     
-    // Generar escala de años si está vacía
     const scale = document.getElementById('timeline-scale');
     if (scale.innerHTML.trim() === "") {
         for (let y = 2022; y <= 2031; y++) {
