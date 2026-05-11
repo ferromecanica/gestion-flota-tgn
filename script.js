@@ -2,75 +2,73 @@ const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced0
 const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 
-// Inicialización de Mapa
 const map = L.map('map').setView([-34.6037, -58.3816], 5);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Configuración de escala de tiempo (4 años: 2024-2028)
-const minDate = new Date("2024-01-01").getTime();
-const maxDate = new Date("2028-01-01").getTime();
+// Ventana de tiempo: Enero 2026 a Diciembre 2029
+const minDate = new Date("2026-01-01").getTime();
+const maxDate = new Date("2030-01-01").getTime();
 const totalRange = maxDate - minDate;
 
-async function arrancar() {
-    const statusEl = document.getElementById('debug-bar');
+async function iniciarSistema() {
+    const debugEl = document.getElementById('debug-bar');
     try {
-        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?sort%5B0%5D%5Bfield%5D=UT+Limpia`, {
+        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
         
         if (data.records) {
-            statusEl.innerText = "Sincronización completa. Filtrando registros actuales...";
-            renderizar(data.records);
+            const campos = Object.keys(data.records[0].fields);
+            debugEl.innerText = "Columnas: " + campos.join(" | ");
+            
+            // FILTRADO CRÍTICO: Solo registros sin Fecha Fin
+            const registrosActivos = data.records.filter(r => !r.fields["Fecha Fin"]);
+            
+            document.getElementById('status').innerText = `CONECTADO: ${registrosActivos.length} UNIDADES ACTIVAS`;
+            renderGantt(registrosActivos);
         }
     } catch (err) {
-        statusEl.innerText = "Error de conexión.";
+        debugEl.innerText = "Error cargando datos.";
     }
 }
 
-function renderizar(records) {
+function renderGantt(registros) {
     const container = document.getElementById('gantt');
     container.innerHTML = ''; 
 
-    // 1. Filtrar solo los registros que NO tienen Fecha Fin (Plan Actual)
-    const actuales = records.filter(r => !r.fields["Fecha Fin"]);
-
-    actuales.forEach(r => {
+    registros.forEach(r => {
         const f = r.fields;
+        
+        // Intentamos leer el nombre de la turbina desde varios campos posibles
+        let nombreTurbina = f["Turbina Texto"] || f["Turbina"] || "S/N";
+        if (Array.isArray(nombreTurbina)) nombreTurbina = nombreTurbina[0];
+
         const ut = f["UT Limpia"] || "S/D";
-        const sn = Array.isArray(f["Turbina"]) ? "Turbina ID" : (f["Turbina"] || "S/N"); 
-        const esMuleto = f["Es Muleto"] === true;
+        const fechaInicio = new Date(f["Fecha"] || "2026-01-01").getTime();
+        const fechaFin = new Date(f["Fecha Fin Visual"] || "2028-01-01").getTime();
 
-        // Cálculos de posición para el Gantt
-        const inicio = new Date(f["Fecha"] || "2024-01-01").getTime();
-        const fin = new Date(f["Fecha Fin Visual"] || "2027-12-31").getTime();
+        // Calcular porcentajes para la barra
+        let left = ((fechaInicio - minDate) / totalRange) * 100;
+        let width = ((fechaFin - fechaInicio) / totalRange) * 100;
 
-        let leftPercent = ((inicio - minDate) / totalRange) * 100;
-        let widthPercent = ((fin - inicio) / totalRange) * 100;
-
-        // Ajustes de seguridad para el gráfico
-        if (leftPercent < 0) leftPercent = 0;
-        if (widthPercent <= 0) widthPercent = 5; // Mínimo visible
+        // Limites visuales
+        if (left < 0) left = 0;
+        if (width < 2) width = 10; // Para que siempre se vea algo
 
         const row = document.createElement('div');
         row.className = 'timeline-row';
         row.innerHTML = `
             <div class="ut-label">${ut}</div>
             <div class="bar-box">
-                <div class="bar ${esMuleto ? 'muleto-bar' : ''}" 
-                     style="left: ${leftPercent}%; width: ${widthPercent}%;">
-                    ${sn}
+                <div class="bar ${f["Es Muleto"] ? 'muleto-bar' : ''}" 
+                     style="left: ${left}%; width: ${width}%;">
+                    ${nombreTurbina}
                 </div>
             </div>
         `;
         container.appendChild(row);
-
-        // Marcador en el mapa (Solo coordenadas genéricas por ahora)
-        if (!f["Es Muleto"]) {
-            L.circleMarker([-34.6, -58.4], {radius: 6, fillColor: '#E48A06', color: '#fff', weight: 1, fillOpacity: 0.8})
-             .addTo(map).bindPopup(`<b>${ut}</b><br>${sn}`);
-        }
     });
 }
 
-arrancar();
+iniciarSistema();
