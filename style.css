@@ -1,15 +1,19 @@
-:root {
-    --ferro-orange: #E48A06;
-}
+:root { --ferro-orange: #E48A06; }
 
 .page-view { display: none; }
 .page-view.active { display: block; }
 
-/* Mapa oscuro */
-.leaflet-container { background: #0a0a0a !important; }
+.nav-btn.active {
+    background-color: rgba(228, 138, 6, 0.1);
+    border-color: var(--ferro-orange);
+    color: var(--ferro-orange);
+}
 
-/* Gantt Scroll */
-#timeline-viewport { width: 3500px; min-height: 100%; }
+/* Mapa Oscuro */
+.leaflet-container { background: #0a0a0a !important; outline: 0; }
+
+/* Gantt */
+#timeline-viewport { width: 3500px; }
 
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
@@ -20,14 +24,13 @@
     color: white; font-size: 9px; font-weight: bold; padding: 2px 5px; border-radius: 2px;
 }
 
-#timeline-scale { display: flex; }
 .year-block { 
     width: 350px; flex-shrink: 0; padding: 12px; text-align: center; 
     font-size: 11px; color: #444; border-left: 1px solid #222; 
     font-weight: 900; letter-spacing: 2px;
 }
 
-.timeline-row { display: flex; height: 45px; align-items: center; border-bottom: 1px solid #181818; }
+.timeline-row { display: flex; height: 48px; align-items: center; border-bottom: 1px solid #181818; }
 
 .ut-label {
     width: 180px; position: sticky; left: 0; background: #0d0d0d; z-index: 25;
@@ -42,7 +45,7 @@
 }
 
 .bar {
-    position: absolute; height: 26px; top: 9px; 
+    position: absolute; height: 28px; top: 10px; 
     background: linear-gradient(90deg, #E48A06, #ffae33);
     border-radius: 2px; color: #000; font-size: 10px; font-weight: 900;
     display: flex; align-items: center; padding: 0 12px; 
@@ -50,15 +53,13 @@
     white-space: nowrap; overflow: hidden;
 }
 
-/* ESTILO MULETO */
 .bar.muleto {
     background: linear-gradient(90deg, #444, #666) !important;
     color: #eee !important;
     border: 1px solid #777;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ferro-orange); }
