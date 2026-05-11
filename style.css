@@ -1,7 +1,7 @@
 :root {
     --bg-color: #080808;
     --card-bg: #111;
-    --accent-color: #E48A06; /* Naranja Ferro Mecánica */
+    --accent-color: #E48A06;
     --text-color: #eee;
     --border-color: #222;
 }
@@ -29,10 +29,10 @@ header {
     z-index: 100;
 }
 
-h1 { font-size: 18px; margin: 0; font-weight: 700; letter-spacing: 1px; }
+h1 { font-size: 18px; margin: 0; font-weight: 700; }
 h1 span { color: var(--accent-color); }
 
-#status { font-size: 11px; font-weight: bold; text-transform: uppercase; }
+#status { font-size: 11px; font-weight: bold; }
 
 main {
     flex: 1;
@@ -43,12 +43,7 @@ main {
     overflow: hidden;
 }
 
-#map-container { 
-    background: #111;
-    border: 1px solid var(--border-color); 
-    border-radius: 4px; 
-    overflow: hidden;
-}
+#map-container { border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; }
 #map { height: 100%; width: 100%; }
 
 #timeline-container {
@@ -71,7 +66,7 @@ h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--accent-
 }
 
 #timeline-viewport {
-    width: 2400px; /* 600px por año para mayor precisión */
+    width: 3000px; /* 300px por año para reducir la sensibilidad */
     position: relative;
 }
 
@@ -86,18 +81,17 @@ h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--accent-
 }
 
 .year-block {
-    width: 600px;
+    width: 300px;
     padding: 10px;
     text-align: center;
     font-size: 11px;
     color: #666;
     border-left: 1px solid #222;
-    background: #000;
 }
 
 .timeline-row {
     display: flex;
-    height: 42px;
+    height: 40px;
     align-items: center;
     border-bottom: 1px solid #181818;
 }
@@ -124,12 +118,12 @@ h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--accent-
     flex: 1;
     height: 100%;
     background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px);
-    background-size: 150px 100%; /* Guías trimestrales */
+    background-size: 75px 100%; /* Guías trimestrales */
 }
 
 .bar {
     position: absolute;
-    height: 26px;
+    height: 24px;
     top: 8px;
     background: linear-gradient(90deg, #E48A06, #ffae33);
     border-radius: 3px;
@@ -139,14 +133,7 @@ h3 { margin: 0; font-size: 12px; text-transform: uppercase; color: var(--accent-
     display: flex;
     align-items: center;
     padding: 0 12px;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
     white-space: nowrap;
-    cursor: help;
-}
-
-/* Estilo para barras con datos incompletos (provisorias) */
-.bar-pending {
-    background: linear-gradient(90deg, #444, #666);
-    color: #ccc;
-    border: 1px dashed #888;
+    overflow: hidden;
 }
