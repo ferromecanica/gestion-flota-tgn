@@ -1,9 +1,9 @@
 :root {
-    --bg-color: #0a0a0a;
-    --card-bg: #141414;
+    --bg-color: #050505;
+    --card-bg: #0f0f0f;
     --accent-color: #E48A06;
-    --text-color: #f0f0f0;
-    --border-color: #333;
+    --text-color: #ffffff;
+    --border-color: #222;
 }
 
 body {
@@ -26,18 +26,18 @@ header {
 }
 
 #debug-bar {
-    background: #1a1500;
+    background: #1a1a00;
     color: #ffcc00;
-    font-size: 11px;
-    padding: 8px 30px;
+    font-size: 10px;
+    padding: 5px 30px;
     font-family: monospace;
-    border-bottom: 1px solid #333;
+    border-bottom: 1px solid var(--border-color);
 }
 
 main {
     flex: 1;
     display: grid;
-    grid-template-columns: 40% 60%;
+    grid-template-columns: 35% 65%;
     gap: 10px;
     padding: 10px;
     overflow: hidden;
@@ -49,78 +49,70 @@ main {
     border-radius: 4px;
     display: flex;
     flex-direction: column;
-    position: relative;
 }
 
-#map { height: 100%; width: 100%; }
-
-.panel-header { padding: 12px; background: #1a1a1a; border-bottom: 1px solid #333; }
-h3 { margin: 0; font-size: 13px; color: var(--accent-color); text-transform: uppercase; }
-
-/* Estilos de la Escala de Tiempo */
 #timeline-scale {
     display: flex;
-    margin-left: 130px; /* Alineado con las barras */
-    border-bottom: 1px solid #333;
+    margin-left: 120px;
     background: #111;
+    border-bottom: 1px solid #333;
 }
 
 .scale-item {
     flex: 1;
     font-size: 10px;
-    padding: 5px;
+    padding: 8px;
     text-align: center;
-    color: #666;
+    color: #555;
     border-left: 1px solid #222;
 }
 
-#gantt { flex: 1; overflow-y: auto; padding: 10px 0; }
+#gantt {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
+}
 
 .timeline-row {
     display: grid;
-    grid-template-columns: 130px 1fr;
-    background: transparent;
-    margin-bottom: 2px;
-    height: 35px;
+    grid-template-columns: 120px 1fr;
+    height: 40px;
     align-items: center;
+    border-bottom: 1px solid #111;
 }
 
 .ut-label {
-    padding-left: 10px;
     font-size: 11px;
     font-weight: bold;
     color: var(--accent-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding-left: 10px;
 }
 
-.bar-box { 
-    position: relative; 
-    width: 100%; 
-    height: 100%; 
-    background-image: linear-gradient(to right, #222 1px, transparent 1px);
-    background-size: 25% 100%; /* Representa los años */
+.bar-box {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-image: linear-gradient(to right, #151515 1px, transparent 1px);
+    background-size: 25% 100%;
 }
 
 .bar {
     position: absolute;
-    height: 22px;
-    top: 6px;
-    background: linear-gradient(90deg, var(--accent-color), #b86f05);
-    border-radius: 2px;
+    height: 26px;
+    top: 7px;
+    background: linear-gradient(90deg, #E48A06, #ffae33);
+    border-radius: 3px;
     color: #000;
     font-size: 10px;
-    font-weight: bold;
+    font-weight: 800;
     display: flex;
     align-items: center;
-    padding-left: 8px;
-    box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
-    overflow: hidden;
+    padding: 0 10px;
+    box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
     white-space: nowrap;
 }
 
 .muleto-bar {
-    background: #666;
-    color: #fff;
+    background: #444;
+    color: #eee;
 }
