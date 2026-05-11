@@ -12,7 +12,14 @@ const coordenadasTGN = {
     "TIO": [-32.29040136421469, -63.2817489913925],
     "JER": [-32.86882501340949, -61.07660895126634],
     "PIC": [-23.411465030614657, -64.33378178052973],
-    "LUM": [-25.205707746680435, -64.94601401301017]
+    "LUM": [-25.205707746680435, -64.94601401301017],
+    "DEA": [-30.37684306759464, -64.37296376071762],
+    "LAV": [-27.90039152467719, -64.81423506635666],
+    "CAN": [-26.124801522350516, -65.16969465161392],
+    "BEL": [-32.63028523528489, -62.23192726118961],
+    "LEO": [-32.63028523528489, -62.23192726118961],
+    "BAL": [-33.14278380631091, -62.30572136301947],
+    "SJA": [-38.07403648358134, -69.06459533583903]
 };
 
 let todosLosRegistros = [];
@@ -38,37 +45,32 @@ function init() {
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
     try {
-        // Cargamos la tabla completa (sin filtros de vista)
         const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?cacheBuster=${Date.now()}`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
         if (data.records) {
-            todosLosRegistros = data.records;
-            statusEl.innerText = `SISTEMA OK | ${data.records.length} REG`;
+            // FILTRO CRÍTICO: Solo registros sin Fecha Fin
+            todosLosRegistros = data.records.filter(r => !r.fields["Fecha Fin"]);
+            statusEl.innerText = `OK | ${todosLosRegistros.length} EQUIPOS`;
             dibujarMapa(todosLosRegistros);
         }
     } catch (e) { statusEl.innerText = "ERROR API"; }
 }
 
 function showView(viewId, familia = null) {
-    // 1. Limpiar botones
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    // 2. Cambiar vistas (display none / block)
-    document.querySelectorAll('.page-view').forEach(v => {
-        v.classList.remove('active');
-    });
-    const activeView = document.getElementById(viewId);
-    activeView.classList.add('active');
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
+    document.querySelectorAll('.page-view').forEach(v => { if(v.id !== viewId) v.classList.add('hidden'); });
+    document.getElementById(viewId).classList.add('active');
 
-    // 3. Si es Gantt, filtrar y dibujar
     if (viewId === 'gantt-view') {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]) === familia);
+        const filtrados = todosLosRegistros.filter(r => r.fields["Familia"] === familia);
         dibujarGantt(filtrados);
     }
 }
@@ -79,12 +81,18 @@ function dibujarMapa(registros) {
         const f = r.fields;
         const ut = f["UT Limpia"] || "S/D";
         const code = ut.substring(0, 3);
-        const coords = coordenadasTGN[code];
+        let coords = coordenadasTGN[code];
         
-        if (coords && !f["Fecha Fin"]) {
+        if (coords) {
+            // JITTER: Desplazamiento aleatorio para evitar superposición
+            const lat = coords[0] + (Math.random() - 0.5) * 0.15;
+            const lng = coords[1] + (Math.random() - 0.5) * 0.15;
+            
             const esMuleto = f["Es Muleto"] === true;
-            L.circleMarker(coords, {
-                radius: 8, fillColor: esMuleto ? "#555" : "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.9
+            const color = esMuleto ? "#555" : (f["Familia"] === "T70" ? "#E48A06" : (f["Familia"] === "M100" ? "#1e40af" : "#0d9488"));
+
+            L.circleMarker([lat, lng], {
+                radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
             }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
         }
     });
@@ -106,6 +114,7 @@ function dibujarGantt(registros) {
         const ut = f["UT Limpia"] || "S/D";
         const sn = f["Turbina Texto"] || "S/N";
         const esMuleto = f["Es Muleto"] === true;
+        const familia = f["Familia"];
 
         let start = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
         let end = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
@@ -116,9 +125,12 @@ function dibujarGantt(registros) {
         if (end > start) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
+            
+            let famClass = familia === "M100" ? "bar-m100" : (familia === "T70" ? "bar-t70" : "bar-t60");
+
             const row = document.createElement('div');
             row.className = 'timeline-row';
-            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
+            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${famClass} ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
             container.appendChild(row);
         }
     });
