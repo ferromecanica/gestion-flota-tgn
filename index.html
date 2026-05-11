@@ -3,50 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TGN - Gestión de Flota</title>
+    <title>TGN Control | Gestión de Flota</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <header>
-        <h1>CENTRO DE CONTROL <span>PLAN OHL</span></h1>
-        <div id="filters">
-            <button class="filter-btn active" onclick="filtrar('TODAS')">TODAS</button>
-            <button class="filter-btn" onclick="filtrar('M100')">M100</button>
-            <button class="filter-btn" onclick="filtrar('T70')">T70</button>
-            <button class="filter-btn" onclick="filtrar('T60')">T60</button>
-        </div>
-        <div id="status">Sincronizando...</div>
-    </header>
-    
-    <main>
-        <section id="map-container">
-            <div id="map"></div>
-        </section>
-        
-        <section id="timeline-container">
-            <div class="panel-header">
-                <h3>Cronograma de Movimientos (2022 - 2031)</h3>
-            </div>
-            
-            <div id="gantt-wrapper">
-                <div id="timeline-viewport">
-                    <div id="today-line"><span class="today-label">HOY</span></div>
+<body class="bg-[#0a0a0a] text-slate-100 font-['Inter'] overflow-hidden">
 
-                    <div id="timeline-scale">
-                        <div class="year-block">2022</div><div class="year-block">2023</div>
-                        <div class="year-block">2024</div><div class="year-block">2025</div>
-                        <div class="year-block">2026</div><div class="year-block">2027</div>
-                        <div class="year-block">2028</div><div class="year-block">2029</div>
-                        <div class="year-block">2030</div><div class="year-block">2031</div>
-                    </div>
-                    <div id="gantt-rows">
+    <nav class="bg-black/95 backdrop-blur-lg border-b border-white/5 sticky top-0 z-[1000]">
+        <div class="max-w-full mx-auto px-6 h-20 flex items-center justify-between">
+            <h1 class="font-audiowide text-2xl tracking-tighter uppercase">
+                <span class="text-[#E48A06]">F</span>ERRO <span class="text-white/40 font-sans text-xs tracking-widest ml-2">TGN CONTROL</span>
+            </h1>
+            <div class="flex gap-8 text-[11px] font-black uppercase tracking-[0.2em]">
+                <a href="javascript:void(0)" onclick="showView('home-view')" class="hover:text-[#E48A06] transition-colors">Mapa Global</a>
+                <a href="javascript:void(0)" onclick="showView('gantt-view', 'M100')" class="hover:text-[#E48A06] transition-colors">Plan M100</a>
+                <a href="javascript:void(0)" onclick="showView('gantt-view', 'T70')" class="hover:text-[#E48A06] transition-colors">Plan T70</a>
+                <a href="javascript:void(0)" onclick="showView('gantt-view', 'T60')" class="hover:text-[#E48A06] transition-colors">Plan T60</a>
+            </div>
+            <div id="status" class="text-[10px] bg-zinc-900 px-3 py-1 rounded border border-white/10 text-zinc-500 font-mono">CONECTANDO...</div>
+        </div>
+    </nav>
+
+    <div id="home-view" class="page-view relative h-[calc(100vh-80px)] w-full active">
+        <div id="map" class="w-full h-full grayscale-[0.8] brightness-[0.7]"></div>
+        <div class="absolute bottom-10 left-10 z-[500] bg-black/80 backdrop-blur-md p-6 border-l-4 border-[#E48A06] max-w-md">
+            <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-widest block mb-2">Estado de Flota Actual</span>
+            <h2 class="font-audiowide text-2xl uppercase mb-4">Ubicación de Unidades</h2>
+            <p class="text-sm text-slate-400 leading-relaxed">Mapa interactivo con las posiciones de las turbinas instaladas. Haga clic en los pines para ver horas actuales y S/N.</p>
+        </div>
+    </div>
+
+    <div id="gantt-view" class="page-view h-[calc(100vh-80px)] w-full hidden">
+        <div class="h-full flex flex-col">
+            <div class="bg-zinc-900/50 p-6 border-b border-white/5">
+                <h2 id="gantt-title" class="font-audiowide text-3xl uppercase text-[#E48A06]">PLAN OHL</h2>
+            </div>
+            <div id="gantt-wrapper" class="flex-1 overflow-auto bg-[#0d0d0d] relative">
+                <div id="timeline-viewport" class="w-[3500px] relative">
+                    <div id="today-line"><span class="today-label">HOY</span></div>
+                    <div id="timeline-scale" class="flex sticky top-0 z-30 bg-black border-b border-white/5 ml-[180px]">
                         </div>
+                    <div id="gantt-rows" class="pt-2"></div>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
