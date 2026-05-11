@@ -4,12 +4,12 @@
 .page-view.active { display: block; }
 
 .nav-btn.active {
-    background-color: rgba(228, 138, 6, 0.1);
-    border-color: var(--ferro-orange);
-    color: var(--ferro-orange);
+    background-color: rgba(228, 138, 6, 0.1) !important;
+    border-color: var(--ferro-orange) !important;
+    color: var(--ferro-orange) !important;
 }
 
-/* Mapa Oscuro */
+/* Mapa Estilo Nocturno */
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
 /* Gantt */
@@ -30,7 +30,7 @@
     font-weight: 900; letter-spacing: 2px;
 }
 
-.timeline-row { display: flex; height: 48px; align-items: center; border-bottom: 1px solid #181818; }
+.timeline-row { display: flex; height: 50px; align-items: center; border-bottom: 1px solid #181818; }
 
 .ut-label {
     width: 180px; position: sticky; left: 0; background: #0d0d0d; z-index: 25;
@@ -45,7 +45,7 @@
 }
 
 .bar {
-    position: absolute; height: 28px; top: 10px; 
+    position: absolute; height: 28px; top: 11px; 
     background: linear-gradient(90deg, #E48A06, #ffae33);
     border-radius: 2px; color: #000; font-size: 10px; font-weight: 900;
     display: flex; align-items: center; padding: 0 12px; 
@@ -59,6 +59,7 @@
     border: 1px solid #777;
 }
 
+/* Scrollbar Custom */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
