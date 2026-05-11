@@ -23,32 +23,45 @@ const totalRange = maxDate - minDate;
 const viewportWidth = 3500; 
 
 function init() {
-    map = L.map('map').setView([-34.6037, -58.3816], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-    markersGroup = L.layerGroup().addTo(map);
-    
-    const hoy = new Date().getTime();
-    const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
-    const line = document.getElementById('today-line');
-    if(line) line.style.left = hoyPos + 'px';
-    
-    const wrapper = document.getElementById('gantt-wrapper');
-    if(wrapper) wrapper.scrollLeft = hoyPos - 400;
+    try {
+        map = L.map('map').setView([-34.6037, -58.3816], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+        markersGroup = L.layerGroup().addTo(map);
+        
+        const hoy = new Date().getTime();
+        const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
+        const line = document.getElementById('today-line');
+        if(line) line.style.left = hoyPos + 'px';
+        
+        const wrapper = document.getElementById('gantt-wrapper');
+        if(wrapper) wrapper.scrollLeft = hoyPos - 400;
 
-    cargarDatos();
+        cargarDatos();
+    } catch(err) {
+        document.getElementById('status').innerText = "ERROR INICIALIZACIÓN";
+    }
 }
 
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
     try {
-        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?view=${VIEW_ID}&cacheBuster=${Date.now()}`);
+        statusEl.innerText = "CONECTANDO...";
+        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?view=${VIEW_ID}&cacheBuster=${Date.now()}`, {
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+        });
+        
+        if(!response.ok) throw new Error("Airtable falló");
+        
         const data = await response.json();
         if (data.records) {
             todosLosRegistros = data.records;
             statusEl.innerText = `CONECTADO: ${data.records.length}`;
             dibujarTodo(todosLosRegistros);
         }
-    } catch (e) { statusEl.innerText = "ERROR API"; }
+    } catch (e) { 
+        statusEl.innerText = "FALLO CONEXIÓN AIRTABLE";
+        console.error(e);
+    }
 }
 
 function filtrar(familia) {
@@ -72,11 +85,11 @@ function dibujarTodo(registros) {
             const sn = f["Turbina Texto"] || "S/N";
             const horas = f["Horas Actuales"] || "0";
 
-            let rawInicio = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
-            let rawFin = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
+            let fInicio = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
+            let fFin = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
             
-            let fInicio = Math.max(rawInicio, minDate);
-            let fFin = Math.min(rawFin, maxDate);
+            fInicio = Math.max(fInicio, minDate);
+            fFin = Math.min(fFin, maxDate);
 
             if (fFin > fInicio) {
                 const left = ((fInicio - minDate) / totalRange) * viewportWidth;
@@ -94,7 +107,7 @@ function dibujarTodo(registros) {
                     radius: 8, fillColor: "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.8
                 }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>Turbina: ${sn}<br><b>Horas: ${horas} h</b>`);
             }
-        } catch (err) { console.error(err); }
+        } catch (err) { console.warn("Error en fila", err); }
     });
 }
 
