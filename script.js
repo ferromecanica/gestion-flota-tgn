@@ -3,7 +3,7 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
-// Coordenadas oficiales TGN (según tus puntos)
+// Coordenadas oficiales TGN corregidas
 const coordenadasTGN = {
     "PUE": [-37.5835941, -68.4167814],
     "COC": [-31.3500000, -64.4333333],
@@ -24,21 +24,22 @@ let map, markersGroup;
 const minDate = new Date("2022-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 3000; 
+const viewportWidth = 3500; 
 
 function init() {
     map = L.map('map').setView([-34.6037, -58.3816], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Posicionar línea de HOY (May 11, 2026)
+    // Posicionar línea de HOY
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
-    document.getElementById('today-line').style.left = hoyPos + 'px';
+    const line = document.getElementById('today-line');
+    if(line) line.style.left = hoyPos + 'px';
     
     // Centrar scroll en HOY
     const wrapper = document.getElementById('gantt-wrapper');
-    wrapper.scrollLeft = hoyPos - 400;
+    if(wrapper) wrapper.scrollLeft = hoyPos - 400;
 
     cargarDatos();
 }
@@ -68,6 +69,7 @@ function filtrar(familia) {
 
 function dibujarTodo(registros) {
     const container = document.getElementById('gantt-rows');
+    if(!container) return;
     container.innerHTML = '';
     markersGroup.clearLayers();
 
@@ -78,7 +80,7 @@ function dibujarTodo(registros) {
             const sn = f["Turbina Texto"] || "S/N";
             const horas = f["Horas Actuales"] || "0";
 
-            // 1. DIBUJAR GANTT
+            // 1. GANTT
             let rawInicio = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
             let rawFin = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
             
@@ -95,7 +97,7 @@ function dibujarTodo(registros) {
                 container.appendChild(row);
             }
 
-            // 2. DIBUJAR MAPA (Solo si está instalada)
+            // 2. MAPA
             const prefijoUT = ut.substring(0, 3);
             const coords = coordenadasTGN[prefijoUT];
             if (coords && !f["Fecha Fin"]) {
@@ -103,7 +105,7 @@ function dibujarTodo(registros) {
                     radius: 8, fillColor: "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.8
                 }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>Turbina: ${sn}<br><b>Horas: ${horas} h</b>`);
             }
-        } catch (err) { console.error("Error en registro:", err); }
+        } catch (err) { console.error(err); }
     });
 }
 
