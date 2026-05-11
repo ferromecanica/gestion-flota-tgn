@@ -3,7 +3,6 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
-// Coordenadas oficiales TGN corregidas
 const coordenadasTGN = {
     "PUE": [-37.5835941, -68.4167814],
     "COC": [-31.3500000, -64.4333333],
@@ -12,10 +11,7 @@ const coordenadasTGN = {
     "CHA": [-33.3225000, -62.0358000],
     "LCA": [-33.4243000, -63.2956000],
     "TIO": [-31.3833000, -62.8333000],
-    "JER": [-32.5500000, -62.1167000],
-    "BEL": [-27.6500000, -67.0333000],
-    "LAV": [-28.2000000, -65.1167000],
-    "PIC": [-23.3211000, -64.2181000]
+    "JER": [-32.5500000, -62.1167000]
 };
 
 let todosLosRegistros = [];
@@ -31,13 +27,11 @@ function init() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Posicionar línea de HOY
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
     
-    // Centrar scroll en HOY
     const wrapper = document.getElementById('gantt-wrapper');
     if(wrapper) wrapper.scrollLeft = hoyPos - 400;
 
@@ -61,9 +55,7 @@ function filtrar(familia) {
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.toggle('active', btn.innerText === familia);
     });
-    const filtrados = (familia === 'TODAS') 
-        ? todosLosRegistros 
-        : todosLosRegistros.filter(r => r.fields["Familia"] === familia);
+    const filtrados = (familia === 'TODAS') ? todosLosRegistros : todosLosRegistros.filter(r => r.fields["Familia"] === familia);
     dibujarTodo(filtrados);
 }
 
@@ -80,7 +72,6 @@ function dibujarTodo(registros) {
             const sn = f["Turbina Texto"] || "S/N";
             const horas = f["Horas Actuales"] || "0";
 
-            // 1. GANTT
             let rawInicio = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
             let rawFin = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
             
@@ -90,14 +81,12 @@ function dibujarTodo(registros) {
             if (fFin > fInicio) {
                 const left = ((fInicio - minDate) / totalRange) * viewportWidth;
                 const width = ((fFin - fInicio) / totalRange) * viewportWidth;
-                
                 const row = document.createElement('div');
                 row.className = 'timeline-row';
                 row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar" style="left: ${left}px; width: ${width}px;">${sn}</div></div>`;
                 container.appendChild(row);
             }
 
-            // 2. MAPA
             const prefijoUT = ut.substring(0, 3);
             const coords = coordenadasTGN[prefijoUT];
             if (coords && !f["Fecha Fin"]) {
