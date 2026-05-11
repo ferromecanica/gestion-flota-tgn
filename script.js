@@ -1,9 +1,8 @@
 const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced03db48ae8598ac7cd08c3a5810a'; 
 const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
-const VIEW_ID = 'viwSyMdWPCnP5lkKU';
 
-// COORDENADAS OFICIALES (Actualizadas por Lucio)
+// COORDENADAS PRECISAS (Lucio)
 const coordenadasTGN = {
     "LMR": [-35.10701111729368, -66.83017549362897],
     "PUE": [-37.54775316810032, -67.73435632628639],
@@ -23,10 +22,10 @@ let map, markersGroup;
 const minDate = new Date("2022-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 3500; 
+const viewportWidth = 1600; 
 
 function init() {
-    map = L.map('map').setView([-34.6037, -58.3816], 5);
+    map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
@@ -40,45 +39,35 @@ function init() {
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
     try {
-        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?view=${VIEW_ID}&cacheBuster=${Date.now()}`, {
+        // Quitamos el parámetro ?view= para traer TODO el contenido de la tabla Movimientos
+        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?cacheBuster=${Date.now()}`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
         if (data.records) {
             todosLosRegistros = data.records;
-            statusEl.innerText = `SISTEMA ONLINE: ${data.records.length} EQUIPOS`;
+            statusEl.innerText = `SISTEMA OK | ${data.records.length} REG`;
             dibujarMapa(todosLosRegistros);
         }
-    } catch (e) { statusEl.innerText = "ERROR DE CONEXIÓN"; }
+    } catch (e) { statusEl.innerText = "ERROR API"; }
 }
 
 function showView(viewId, familia = null) {
-    // Actualizar estados de botones nav
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    // Toggle de vistas
-    document.querySelectorAll('.page-view').forEach(v => {
-        v.classList.remove('active');
-        v.classList.add('hidden');
-    });
-    
+    document.querySelectorAll('.page-view').forEach(v => v.classList.add('hidden'));
     const activeView = document.getElementById(viewId);
     activeView.classList.remove('hidden');
     activeView.classList.add('active');
 
     if (viewId === 'gantt-view') {
-        document.getElementById('gantt-title').innerText = `PLAN OHL | FAMILIA ${familia}`;
+        document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
+        // Filtrado por el campo Familia (mayúsculas/minúsculas según Airtable)
         const filtrados = todosLosRegistros.filter(r => r.fields["Familia"] === familia);
         dibujarGantt(filtrados);
-        
-        setTimeout(() => {
-            const hoy = new Date().getTime();
-            const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
-            document.getElementById('gantt-wrapper').scrollLeft = hoyPos - 400;
-        }, 100);
     }
 }
 
@@ -93,14 +82,8 @@ function dibujarMapa(registros) {
         if (coords && !f["Fecha Fin"]) {
             const esMuleto = f["Es Muleto"] === true;
             L.circleMarker(coords, {
-                radius: 9, fillColor: esMuleto ? "#555" : "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`
-                <div style="font-family:'Inter'; font-size:12px;">
-                    <b style="color:#E48A06">${ut}</b><br>
-                    Turbina: ${f["Turbina Texto"]}<br>
-                    Horas: ${f["Horas Actuales"] || 0}
-                </div>
-            `);
+                radius: 8, fillColor: esMuleto ? "#555" : "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.9
+            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
         }
     });
 }
@@ -133,11 +116,7 @@ function dibujarGantt(registros) {
             const width = ((end - start) / totalRange) * viewportWidth;
             const row = document.createElement('div');
             row.className = 'timeline-row';
-            row.innerHTML = `
-                <div class="ut-label">${ut}</div>
-                <div class="bar-box">
-                    <div class="bar ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div>
-                </div>`;
+            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
             container.appendChild(row);
         }
     });
