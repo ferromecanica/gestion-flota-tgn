@@ -1,94 +1,64 @@
 :root {
-    --bg-color: #080808;
-    --card-bg: #111;
-    --accent-color: #E48A06; /* Naranja Ferro */
-    --text-color: #eee;
-    --border-color: #222;
-    --today-color: #ff4444;
-    --muleto-color: #555;
+    --ferro-orange: #E48A06;
 }
 
-* { box-sizing: border-box; }
-body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-family: 'Urbanist', sans-serif;
-    margin: 0; height: 100vh;
-    display: flex; flex-direction: column; overflow: hidden;
-}
+.page-view { display: none; }
+.page-view.active { display: block; }
 
-header {
-    padding: 10px 25px; background: #000;
-    border-bottom: 2px solid var(--accent-color);
-    display: flex; justify-content: space-between; align-items: center; z-index: 100;
-}
+/* Mapa oscuro */
+.leaflet-container { background: #0a0a0a !important; }
 
-h1 { font-size: 16px; margin: 0; font-weight: 700; }
-h1 span { color: var(--accent-color); }
+/* Gantt Scroll */
+#timeline-viewport { width: 3500px; min-height: 100%; }
 
-#filters { display: flex; gap: 8px; }
-.filter-btn {
-    background: #222; border: 1px solid #444; color: #888;
-    padding: 6px 14px; border-radius: 4px; cursor: pointer;
-    font-size: 11px; font-weight: bold; transition: 0.2s;
-}
-.filter-btn.active, .filter-btn:hover {
-    background: var(--accent-color); color: #000; border-color: var(--accent-color);
-}
-
-#status { font-size: 11px; font-weight: bold; }
-
-main { flex: 1; display: grid; grid-template-columns: 35% 65%; gap: 10px; padding: 10px; overflow: hidden; }
-
-#map-container { border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; background: #111; }
-#map { height: 100%; width: 100%; }
-
-#timeline-container { background: var(--card-bg); border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; }
-.panel-header { padding: 12px; background: #1a1a1a; border-bottom: 1px solid #222; }
-h3 { margin: 0; font-size: 11px; text-transform: uppercase; color: var(--accent-color); }
-
-#gantt-wrapper { flex: 1; overflow-x: auto; overflow-y: auto; background: #0d0d0d; position: relative; }
-#timeline-viewport { width: 3500px; position: relative; }
-
-/* Línea de HOY */
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
-    background-color: var(--today-color); z-index: 20; pointer-events: none;
+    background-color: #ff4444; z-index: 20; pointer-events: none;
 }
 .today-label {
-    position: absolute; top: 42px; left: 5px; background: var(--today-color);
+    position: absolute; top: 45px; left: 5px; background: #ff4444;
     color: white; font-size: 9px; font-weight: bold; padding: 2px 5px; border-radius: 2px;
 }
 
-#timeline-scale { display: flex; position: sticky; top: 0; z-index: 30; margin-left: 120px; background: #000; }
-.year-block { width: 350px; padding: 10px; text-align: center; font-size: 10px; color: #555; border-left: 1px solid #222; }
+#timeline-scale { display: flex; }
+.year-block { 
+    width: 350px; flex-shrink: 0; padding: 12px; text-align: center; 
+    font-size: 11px; color: #444; border-left: 1px solid #222; 
+    font-weight: 900; letter-spacing: 2px;
+}
 
-.timeline-row { display: flex; height: 40px; align-items: center; border-bottom: 1px solid #181818; }
+.timeline-row { display: flex; height: 45px; align-items: center; border-bottom: 1px solid #181818; }
+
 .ut-label {
-    width: 120px; position: sticky; left: 0; background: #111; z-index: 25;
-    padding: 0 10px; font-size: 10px; font-weight: 800; color: var(--accent-color);
-    border-right: 2px solid var(--accent-color); height: 100%; display: flex; align-items: center;
+    width: 180px; position: sticky; left: 0; background: #0d0d0d; z-index: 25;
+    padding-left: 20px; font-size: 11px; font-weight: 900; color: var(--ferro-orange);
+    border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center;
 }
 
 .bar-box { 
     position: relative; flex: 1; height: 100%; 
     background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); 
-    background-size: 87.5px 100%; /* Grilla por trimestres */
+    background-size: 87.5px 100%; 
 }
 
 .bar {
-    position: absolute; height: 24px; top: 8px; 
+    position: absolute; height: 26px; top: 9px; 
     background: linear-gradient(90deg, #E48A06, #ffae33);
-    border-radius: 3px; color: #000; font-size: 10px; font-weight: 900;
-    display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+    border-radius: 2px; color: #000; font-size: 10px; font-weight: 900;
+    display: flex; align-items: center; padding: 0 12px; 
+    box-shadow: 4px 4px 10px rgba(0,0,0,0.5);
     white-space: nowrap; overflow: hidden;
-    transition: transform 0.1s;
 }
 
-.bar:hover { transform: scaleY(1.1); z-index: 50; cursor: pointer; }
-
-/* Color para Muletos */
+/* ESTILO MULETO */
 .bar.muleto {
-    background: linear-gradient(90deg, var(--muleto-color), #888);
-    color: #fff;
+    background: linear-gradient(90deg, #444, #666) !important;
+    color: #eee !important;
+    border: 1px solid #777;
 }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ferro-orange); }
