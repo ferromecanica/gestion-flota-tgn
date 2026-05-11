@@ -3,23 +3,12 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 
 const coordenadasTGN = {
-    "LMR": [-35.10701111729368, -66.83017549362897],
-    "PUE": [-37.54775316810032, -67.73435632628639],
-    "COC": [-36.366345264914976, -67.07470531631624],
-    "BEA": [-33.7947278563908, -66.64557971271866],
-    "CHA": [-33.57661936089481, -65.10266988204269],
-    "LCA": [-33.324082475333874, -63.56042741471796],
-    "TIO": [-32.29040136421469, -63.2817489913925],
-    "JER": [-32.86882501340949, -61.07660895126634],
-    "PIC": [-23.411465030614657, -64.33378178052973],
-    "LUM": [-25.205707746680435, -64.94601401301017],
-    "DEA": [-30.37684306759464, -64.37296376071762],
-    "LAV": [-27.90039152467719, -64.81423506635666],
-    "CAN": [-26.124801522350516, -65.16969465161392],
-    "BEL": [-32.63028523528489, -62.23192726118961],
-    "LEO": [-32.63028523528489, -62.23192726118961],
-    "BAL": [-33.14278380631091, -62.30572136301947],
-    "SJA": [-38.07403648358134, -69.06459533583903]
+    "LMR": [-35.1070, -66.8301], "PUE": [-37.5477, -67.7343], "COC": [-36.3663, -67.0747],
+    "BEA": [-33.7947, -66.6455], "CHA": [-33.5766, -65.1026], "LCA": [-33.3240, -63.5604],
+    "TIO": [-32.2904, -63.2817], "JER": [-32.8688, -61.0766], "PIC": [-23.4114, -64.3337],
+    "LUM": [-25.2057, -64.9460], "DEA": [-30.3768, -64.3729], "LAV": [-27.9003, -64.8142],
+    "CAN": [-26.1248, -65.1696], "BEL": [-32.6302, -62.2319], "LEO": [-32.6302, -62.2319],
+    "BAL": [-33.1427, -62.3057], "SJA": [-38.0740, -69.0645]
 };
 
 let todosLosRegistros = [];
@@ -50,10 +39,12 @@ async function cargarDatos() {
         });
         const data = await response.json();
         if (data.records) {
-            // FILTRO CRÍTICO: Solo registros sin Fecha Fin
-            todosLosRegistros = data.records.filter(r => !r.fields["Fecha Fin"]);
-            statusEl.innerText = `OK | ${todosLosRegistros.length} EQUIPOS`;
-            dibujarMapa(todosLosRegistros);
+            todosLosRegistros = data.records; // Guardamos TODO para el Gantt
+            statusEl.innerText = `OK | ${todosLosRegistros.length} MOVIMIENTOS`;
+            
+            // Para el mapa, filtramos solo los activos
+            const activos = todosLosRegistros.filter(r => !r.fields["Fecha Fin"]);
+            dibujarMapa(activos);
         }
     } catch (e) { statusEl.innerText = "ERROR API"; }
 }
@@ -64,34 +55,44 @@ function showView(viewId, familia = null) {
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
-    document.querySelectorAll('.page-view').forEach(v => { if(v.id !== viewId) v.classList.add('hidden'); });
-    document.getElementById(viewId).classList.add('active');
+    document.querySelectorAll('.page-view').forEach(v => v.classList.add('hidden'));
+    const activeView = document.getElementById(viewId);
+    activeView.classList.remove('hidden');
+    activeView.classList.add('active');
 
     if (viewId === 'gantt-view') {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        const filtrados = todosLosRegistros.filter(r => r.fields["Familia"] === familia);
+        // Filtrado por familia (sin importar Fecha Fin)
+        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]) === familia);
         dibujarGantt(filtrados);
     }
 }
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
+    const conteoPlantas = {};
+
     registros.forEach(r => {
         const f = r.fields;
         const ut = f["UT Limpia"] || "S/D";
         const code = ut.substring(0, 3);
-        let coords = coordenadasTGN[code];
+        const coords = coordenadasTGN[code];
         
         if (coords) {
-            // JITTER: Desplazamiento aleatorio para evitar superposición
-            const lat = coords[0] + (Math.random() - 0.5) * 0.15;
-            const lng = coords[1] + (Math.random() - 0.5) * 0.15;
-            
-            const esMuleto = f["Es Muleto"] === true;
-            const color = esMuleto ? "#555" : (f["Familia"] === "T70" ? "#E48A06" : (f["Familia"] === "M100" ? "#1e40af" : "#0d9488"));
+            // Lógica de desplazamiento para máquinas en la misma planta
+            if (!conteoPlantas[code]) conteoPlantas[code] = 0;
+            const offset = conteoPlantas[code] * 0.025; 
+            conteoPlantas[code]++;
 
-            L.circleMarker([lat, lng], {
+            const esMuleto = f["Es Muleto"] === true;
+            const fam = String(f["Familia"]);
+            
+            let color = "#E48A06"; // Default T70
+            if (fam === "M100") color = "#1e40af";
+            if (fam === "T60") color = "#0d9488";
+            if (esMuleto) color = "#555";
+
+            L.circleMarker([coords[0] - offset, coords[1] + offset], {
                 radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
             }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
         }
@@ -114,7 +115,7 @@ function dibujarGantt(registros) {
         const ut = f["UT Limpia"] || "S/D";
         const sn = f["Turbina Texto"] || "S/N";
         const esMuleto = f["Es Muleto"] === true;
-        const familia = f["Familia"];
+        const fam = String(f["Familia"]);
 
         let start = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
         let end = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
@@ -126,11 +127,13 @@ function dibujarGantt(registros) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
             
-            let famClass = familia === "M100" ? "bar-m100" : (familia === "T70" ? "bar-t70" : "bar-t60");
+            let colorClass = "bar-t70";
+            if (fam === "M100") colorClass = "bar-m100";
+            if (fam === "T60") colorClass = "bar-t60";
 
             const row = document.createElement('div');
             row.className = 'timeline-row';
-            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${famClass} ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
+            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${colorClass} ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
             container.appendChild(row);
         }
     });
