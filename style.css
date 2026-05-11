@@ -1,31 +1,26 @@
-/* 1. VARIABLES Y CONFIGURACIÓN BASE */
 :root {
     --bg-color: #0f0f0f;
     --card-bg: #1a1a1a;
     --header-bg: #000000;
     --text-color: #f0f0f0;
-    --accent-color: #E48A06; /* Naranja Ferro Mecánica */
+    --accent-color: #E48A06;
     --border-color: #333;
-    --muleto-color: #666;    /* Gris para muletos */
+    --muleto-color: #666;
     --font-main: 'Urbanist', sans-serif;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
     font-family: var(--font-main);
     margin: 0;
-    overflow: hidden; /* Evita el scroll global */
     height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
-/* 2. CABECERA */
 header {
     padding: 15px 30px;
     background: var(--header-bg);
@@ -33,19 +28,19 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 10;
 }
 
-h1 {
-    font-size: 20px;
-    letter-spacing: 2px;
-    margin: 0;
-    font-weight: 700;
+#debug-bar {
+    background: #442200;
+    color: #ffcc00;
+    font-size: 11px;
+    padding: 5px 30px;
+    font-family: monospace;
+    border-bottom: 1px solid var(--accent-color);
 }
 
-h1 span {
-    color: var(--accent-color);
-}
+h1 { font-size: 20px; letter-spacing: 2px; margin: 0; font-weight: 700; }
+h1 span { color: var(--accent-color); }
 
 #status {
     font-size: 12px;
@@ -53,14 +48,12 @@ h1 span {
     border-radius: 4px;
     background: #222;
     border: 1px solid #444;
-    text-transform: uppercase;
 }
 
-/* 3. LAYOUT PRINCIPAL (MAPA Y TIMELINE) */
 main {
     flex: 1;
     display: grid;
-    grid-template-columns: 45% 55%; /* Mapa a la izquierda, Timeline a la derecha */
+    grid-template-columns: 45% 55%;
     gap: 15px;
     padding: 15px;
     overflow: hidden;
@@ -70,83 +63,47 @@ main {
     background: var(--card-bg);
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
-#map {
-    width: 100%;
-    height: 100%;
-}
+#map { width: 100%; height: 100%; }
 
-/* 4. ESTILOS DEL CRONOGRAMA (GANTT) */
-.panel-header {
-    padding: 15px;
-    border-bottom: 1px solid var(--border-color);
-    background: #222;
-}
-
-h3 {
-    margin: 0;
-    font-size: 14px;
-    text-transform: uppercase;
-    color: var(--accent-color);
-    letter-spacing: 1px;
-}
+.panel-header { padding: 15px; border-bottom: 1px solid var(--border-color); background: #222; }
+h3 { margin: 0; font-size: 14px; text-transform: uppercase; color: var(--accent-color); }
 
 #gantt {
     flex: 1;
     padding: 15px;
-    overflow-y: auto; /* Permite scroll solo en la lista de movimientos */
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* Filas del Timeline */
 .timeline-row {
     display: grid;
-    grid-template-columns: 140px 1fr; /* Espacio para nombre de UT y la barra */
+    grid-template-columns: 140px 1fr;
     align-items: center;
     background: #222;
     border-radius: 6px;
-    overflow: hidden;
     height: 45px;
-    border: 1px solid transparent;
-    transition: border 0.2s;
-}
-
-.timeline-row:hover {
-    border-color: #444;
 }
 
 .ut-name {
     background: #2a2a2a;
     padding: 0 15px;
     font-size: 12px;
-    font-weight: 700;
     color: var(--accent-color);
     border-right: 1px solid var(--border-color);
     height: 100%;
     display: flex;
     align-items: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-/* Contenedor de la barra */
-.bar-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    background-image: linear-gradient(to right, #333 1px, transparent 1px);
-    background-size: 10% 100%; /* Guías visuales de fondo */
-}
+.bar-container { position: relative; width: 100%; height: 100%; }
 
-/* La barra de la turbina */
 .turbine-bar {
     position: absolute;
     height: 28px;
@@ -159,19 +116,4 @@ h3 {
     font-size: 11px;
     font-weight: 700;
     color: #000;
-    white-space: nowrap;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-/* Variante para muletos */
-.muleto-bar {
-    background: var(--muleto-color);
-    color: #fff;
-}
-
-#flowCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none; /* Las flechas no bloquean clics */
 }
