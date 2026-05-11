@@ -1,6 +1,9 @@
-:root { --ferro-orange: #E48A06; }
+:root { 
+    --ferro-orange: #E48A06;
+    --m100-color: #1e40af; /* Blue 800 */
+    --t60-color: #0d9488; /* Teal 600 */
+}
 
-/* Lógica de visibilidad igual a Ferro Taller */
 .page-view { display: none; }
 .page-view.active { display: block !important; }
 
@@ -12,7 +15,6 @@
 
 .leaflet-container { background: #0a0a0a !important; }
 
-/* Escala 1600px (Compacta) */
 #timeline-viewport { width: 1600px; }
 
 #today-line {
@@ -26,11 +28,10 @@
 
 .year-block { 
     width: 160px; flex-shrink: 0; padding: 12px 0; text-align: center; 
-    font-size: 10px; color: #444; border-left: 1px solid #1a1a1a; 
-    font-weight: 900; background: #000;
+    font-size: 10px; color: #444; border-left: 1px solid #1a1a1a; font-weight: 900;
 }
 
-.timeline-row { display: flex; height: 44px; align-items: center; border-bottom: 1px solid #151515; }
+.timeline-row { display: flex; height: 42px; align-items: center; border-bottom: 1px solid #151515; }
 
 .ut-label {
     width: 140px; position: sticky; left: 0; background: #0d0d0d; z-index: 25;
@@ -45,16 +46,25 @@
 }
 
 .bar {
-    position: absolute; height: 26px; top: 9px; 
-    background: linear-gradient(90deg, #E48A06, #ffae33);
-    border-radius: 2px; color: #000; font-size: 9px; font-weight: 900;
-    display: flex; align-items: center; padding: 0 10px; 
+    position: absolute; height: 24px; top: 9px; 
+    border-radius: 2px; color: #fff; font-size: 9px; font-weight: 900;
+    display: flex; align-items: center; padding: 0 8px; 
     box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
     white-space: nowrap; overflow: hidden;
 }
 
+/* COLORES POR FAMILIA */
+.bar-m100 { background: linear-gradient(90deg, var(--m100-color), #3b82f6); }
+.bar-t70 { background: linear-gradient(90deg, var(--ferro-orange), #ffae33); color: #000; }
+.bar-t60 { background: linear-gradient(90deg, var(--t60-color), #2dd4bf); }
+
+/* MULETO (PRIORIDAD SOBRE EL RESTO) */
 .bar.muleto {
     background: linear-gradient(90deg, #333, #555) !important;
     color: #aaa !important;
     border: 1px solid #444;
 }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ferro-orange); }
