@@ -20,23 +20,23 @@
         <div class="flex-1 p-4 space-y-2 mt-4">
             <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em] px-4 block mb-4 opacity-50">Gestión de Flota</span>
             
-            <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all group">
+            <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all">
                 <i class="fas fa-map-marked-alt text-[#E48A06]"></i>
                 <span class="font-black uppercase text-[11px] tracking-widest">Mapa Global</span>
             </button>
 
             <button onclick="showView('gantt-view', 'M100')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-microchip opacity-30 group-hover:opacity-100"></i>
+                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
                 <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL M100</span>
             </button>
 
             <button onclick="showView('gantt-view', 'T70')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-engine opacity-30 group-hover:opacity-100"></i>
+                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
                 <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL T70</span>
             </button>
 
             <button onclick="showView('gantt-view', 'T60')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-fan opacity-30 group-hover:opacity-100"></i>
+                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
                 <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL T60</span>
             </button>
         </div>
@@ -54,10 +54,10 @@
         <div id="gantt-view" class="page-view absolute inset-0 hidden bg-[#0d0d0d] flex flex-col">
             <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/20">
                 <div>
-                    <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Cronograma Activo</span>
+                    <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Cronograma</span>
                     <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1">PLAN OHL</h2>
                 </div>
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Escala Compacta: 2022-2031</div>
+                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Escala 2022-2031</div>
             </div>
             <div id="gantt-wrapper" class="flex-1 overflow-auto">
                 <div id="timeline-viewport" class="w-[1600px] relative min-h-full">
