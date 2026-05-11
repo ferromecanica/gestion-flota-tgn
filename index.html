@@ -11,11 +11,15 @@
 <body>
     <header>
         <h1>CENTRO DE CONTROL <span>PLAN OHL</span></h1>
+        <div id="filters">
+            <button class="filter-btn active" onclick="filtrar('TODAS')">TODAS</button>
+            <button class="filter-btn" onclick="filtrar('M100')">M100</button>
+            <button class="filter-btn" onclick="filtrar('T70')">T70</button>
+            <button class="filter-btn" onclick="filtrar('T60')">T60</button>
+        </div>
         <div id="status">Sincronizando...</div>
     </header>
     
-    <div id="debug-bar">Verificando columnas...</div>
-
     <main>
         <section id="map-container">
             <div id="map"></div>
@@ -23,16 +27,21 @@
         
         <section id="timeline-container">
             <div class="panel-header">
-                <h3>Cronograma Operativo (Vista: PLAN OHL)</h3>
+                <h3>Cronograma Operativo Proyectado</h3>
             </div>
-            <div id="timeline-scale">
-                <div class="scale-item">2026</div>
-                <div class="scale-item">2027</div>
-                <div class="scale-item">2028</div>
-                <div class="scale-item">2029</div>
-            </div>
-            <div id="gantt">
+            
+            <div id="gantt-wrapper">
+                <div id="timeline-viewport">
+                    <div id="timeline-scale">
+                        <div class="year-block">2026</div>
+                        <div class="year-block">2027</div>
+                        <div class="year-block">2028</div>
+                        <div class="year-block">2029</div>
+                    </div>
+                    <div id="gantt-rows">
+                        </div>
                 </div>
+            </div>
         </section>
     </main>
 
