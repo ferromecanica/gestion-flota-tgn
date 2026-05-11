@@ -2,7 +2,6 @@ const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced0
 const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 
-// COORDENADAS PRECISAS (Lucio)
 const coordenadasTGN = {
     "LMR": [-35.10701111729368, -66.83017549362897],
     "PUE": [-37.54775316810032, -67.73435632628639],
@@ -39,7 +38,7 @@ function init() {
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
     try {
-        // Quitamos el parámetro ?view= para traer TODO el contenido de la tabla Movimientos
+        // Cargamos la tabla completa (sin filtros de vista)
         const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?cacheBuster=${Date.now()}`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
@@ -53,20 +52,23 @@ async function cargarDatos() {
 }
 
 function showView(viewId, familia = null) {
+    // 1. Limpiar botones
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    document.querySelectorAll('.page-view').forEach(v => v.classList.add('hidden'));
+    // 2. Cambiar vistas (display none / block)
+    document.querySelectorAll('.page-view').forEach(v => {
+        v.classList.remove('active');
+    });
     const activeView = document.getElementById(viewId);
-    activeView.classList.remove('hidden');
     activeView.classList.add('active');
 
+    // 3. Si es Gantt, filtrar y dibujar
     if (viewId === 'gantt-view') {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        // Filtrado por el campo Familia (mayúsculas/minúsculas según Airtable)
-        const filtrados = todosLosRegistros.filter(r => r.fields["Familia"] === familia);
+        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]) === familia);
         dibujarGantt(filtrados);
     }
 }
