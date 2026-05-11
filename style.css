@@ -50,7 +50,6 @@ h3 { margin: 0; font-size: 11px; text-transform: uppercase; color: var(--accent-
 #gantt-wrapper { flex: 1; overflow-x: auto; overflow-y: auto; background: #0d0d0d; position: relative; }
 #timeline-viewport { width: 3500px; position: relative; }
 
-/* Línea de HOY */
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
     background-color: var(--today-color); z-index: 20; pointer-events: none;
