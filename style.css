@@ -1,1 +1,66 @@
+:root {
+    --bg-color: #121212;
+    --card-bg: #1e1e1e;
+    --text-color: #e0e0e0;
+    --accent-color: #E48A06; /* El naranja que usamos para Ferro Mecánica */
+    --border-color: #333;
+}
 
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Urbanist', sans-serif;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    font-size: 24px;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+h1 span {
+    color: var(--accent-color);
+}
+
+#status {
+    font-size: 14px;
+    padding: 5px 15px;
+    border-radius: 20px;
+    background: #2a2a2a;
+}
+
+main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Dividimos la pantalla: Mapa y Timeline */
+    gap: 20px;
+    padding: 20px;
+    overflow: hidden;
+}
+
+#map {
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    height: 100%;
+}
+
+#timeline-container {
+    background: var(--card-bg);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+}
