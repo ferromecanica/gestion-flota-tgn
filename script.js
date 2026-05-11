@@ -2,74 +2,75 @@ const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced0
 const BASE_ID = 'app3Zwi0sqRk5cTgw';
 const TABLE_ID = 'tblH7sZLmAYvRvFZT';
 
-// Coordenadas fijas para probar el mapa
-const coordenadasTGN = {
-    "Beazley": [-33.7547, -66.6436],
-    "La Carlota": [-33.4243, -63.2956],
-    "Rosario": [-32.9468, -60.6393]
-};
-
+// Inicialización de Mapa
 const map = L.map('map').setView([-34.6037, -58.3816], 5);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-async function fetchFleetData() {
-    const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}`;
-    
+// Configuración de escala de tiempo (4 años: 2024-2028)
+const minDate = new Date("2024-01-01").getTime();
+const maxDate = new Date("2028-01-01").getTime();
+const totalRange = maxDate - minDate;
+
+async function arrancar() {
+    const statusEl = document.getElementById('debug-bar');
     try {
-        const response = await fetch(url, {
+        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?sort%5B0%5D%5Bfield%5D=UT+Limpia`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
         
-        if (data.records && data.records.length > 0) {
-            const campos = Object.keys(data.records[0].fields);
-            document.getElementById('debug-bar').innerText = "Columnas detectadas: " + campos.join(" | ");
-            document.getElementById('status').innerText = `✅ DATOS: ${data.records.length}`;
-            
-            dibujarPines(data.records);
-            renderTimeline(data.records);
-        } else {
-            document.getElementById('status').innerText = '⚠️ SIN DATOS';
+        if (data.records) {
+            statusEl.innerText = "Sincronización completa. Filtrando registros actuales...";
+            renderizar(data.records);
         }
-    } catch (error) {
-        document.getElementById('status').innerText = '❌ ERROR';
+    } catch (err) {
+        statusEl.innerText = "Error de conexión.";
     }
 }
 
-function renderTimeline(records) {
-    const ganttContainer = document.getElementById('gantt');
-    ganttContainer.innerHTML = ''; 
+function renderizar(records) {
+    const container = document.getElementById('gantt');
+    container.innerHTML = ''; 
 
-    // Tomamos los primeros 15 registros para ver si aparecen
-    records.slice(0, 15).forEach(mov => {
-        // Buscador flexible: intenta encontrar la columna de UT o Turbina
-        const fields = mov.fields;
-        const ut = fields["UT Limpia"] || fields["UT"] || fields["Ubicación"] || "S/D";
-        const sn = fields["Turbina"] || fields["S/N"] || "S/N";
+    // 1. Filtrar solo los registros que NO tienen Fecha Fin (Plan Actual)
+    const actuales = records.filter(r => !r.fields["Fecha Fin"]);
+
+    actuales.forEach(r => {
+        const f = r.fields;
+        const ut = f["UT Limpia"] || "S/D";
+        const sn = Array.isArray(f["Turbina"]) ? "Turbina ID" : (f["Turbina"] || "S/N"); 
+        const esMuleto = f["Es Muleto"] === true;
+
+        // Cálculos de posición para el Gantt
+        const inicio = new Date(f["Fecha"] || "2024-01-01").getTime();
+        const fin = new Date(f["Fecha Fin Visual"] || "2027-12-31").getTime();
+
+        let leftPercent = ((inicio - minDate) / totalRange) * 100;
+        let widthPercent = ((fin - inicio) / totalRange) * 100;
+
+        // Ajustes de seguridad para el gráfico
+        if (leftPercent < 0) leftPercent = 0;
+        if (widthPercent <= 0) widthPercent = 5; // Mínimo visible
 
         const row = document.createElement('div');
         row.className = 'timeline-row';
         row.innerHTML = `
-            <div class="ut-name">${ut}</div>
-            <div class="bar-container">
-                <div class="turbine-bar" style="width: 80%; left: 5%;">
+            <div class="ut-label">${ut}</div>
+            <div class="bar-box">
+                <div class="bar ${esMuleto ? 'muleto-bar' : ''}" 
+                     style="left: ${leftPercent}%; width: ${widthPercent}%;">
                     ${sn}
                 </div>
             </div>
         `;
-        ganttContainer.appendChild(row);
-    });
-}
+        container.appendChild(row);
 
-function dibujarPines(records) {
-    records.forEach(mov => {
-        const ut = mov.fields["UT Limpia"] || mov.fields["UT"];
-        if (ut && coordenadasTGN[ut]) {
-            L.circleMarker(coordenadasTGN[ut], {
-                radius: 8, fillColor: "#E48A06", color: "#fff", weight: 1, fillOpacity: 0.8
-            }).addTo(map);
+        // Marcador en el mapa (Solo coordenadas genéricas por ahora)
+        if (!f["Es Muleto"]) {
+            L.circleMarker([-34.6, -58.4], {radius: 6, fillColor: '#E48A06', color: '#fff', weight: 1, fillOpacity: 0.8})
+             .addTo(map).bindPopup(`<b>${ut}</b><br>${sn}`);
         }
     });
 }
 
-fetchFleetData();
+arrancar();
