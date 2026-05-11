@@ -59,7 +59,7 @@ h3 { margin: 0; font-size: 11px; text-transform: uppercase; color: var(--accent-
     color: white; font-size: 9px; font-weight: bold; padding: 2px 5px; border-radius: 2px;
 }
 
-#timeline-scale { display: flex; position: sticky; top: 0; z-index: 30; margin-left: 140px; background: #000; }
+#timeline-scale { display: flex; position: sticky; top: 0; z-index: 30; margin-left: 120px; background: #000; }
 .year-block { width: 350px; padding: 10px; text-align: center; font-size: 10px; color: #555; border-left: 1px solid #222; }
 
 .timeline-row { display: flex; height: 40px; align-items: center; border-bottom: 1px solid #181818; }
