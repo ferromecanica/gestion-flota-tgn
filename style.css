@@ -4,7 +4,6 @@
     --t60-color: #0d9488; 
 }
 
-/* FIX CRÍTICO: Las capas ocultas deben desaparecer por completo */
 .page-view { display: none !important; }
 .page-view.active { display: flex !important; }
 #home-view.active { display: block !important; }
@@ -15,11 +14,9 @@
     color: var(--ferro-orange) !important;
 }
 
-.leaflet-container { background: #0a0a0a !important; cursor: grab; }
-.leaflet-container:active { cursor: grabbing; }
+.leaflet-container { background: #0a0a0a !important; }
 
-/* Gantt Compacto */
-#timeline-viewport { width: 1600px; background: #0d0d0d; }
+#timeline-viewport { width: 1760px; background: #0d0d0d; }
 
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
@@ -43,31 +40,22 @@
     border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center;
 }
 
-.bar-box { 
-    position: relative; flex: 1; height: 100%; 
-    background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); 
-    background-size: 40px 100%; 
-}
+.bar-box { position: relative; flex: 1; height: 100%; background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); background-size: 40px 100%; }
 
 .bar {
     position: absolute; height: 26px; top: 10px; 
     border-radius: 2px; color: #fff; font-size: 9px; font-weight: 900;
     display: flex; align-items: center; padding: 0 10px; 
-    box-shadow: 2px 2px 6px rgba(0,0,0,0.6);
-    white-space: nowrap; overflow: hidden;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.6); white-space: nowrap; overflow: hidden;
 }
 
-/* COLORES POR FAMILIA */
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-.bar.muleto {
+/* TDR O MULETO EN GRIS */
+.bar.muleto, .bar.tdr {
     background: linear-gradient(90deg, #333, #555) !important;
     color: #bbb !important;
     border: 1px solid #444;
 }
-
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--ferro-orange); }
