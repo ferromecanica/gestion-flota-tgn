@@ -20,7 +20,7 @@
         <div class="flex-1 p-4 space-y-2 mt-4">
             <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em] px-4 block mb-4 opacity-50">Gestión de Flota</span>
             
-            <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all">
+            <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all group">
                 <i class="fas fa-map-marked-alt text-[#E48A06]"></i>
                 <span class="font-black uppercase text-[11px] tracking-widest">Mapa Global</span>
             </button>
@@ -52,7 +52,7 @@
         </div>
 
         <div id="gantt-view" class="page-view absolute inset-0 z-20 hidden bg-[#0d0d0d] flex flex-col">
-            <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/40">
+            <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/20">
                 <div>
                     <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Cronograma</span>
                     <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1 text-white">PLAN OHL</h2>
@@ -60,7 +60,8 @@
                 <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Periodo 2022-2031</div>
             </div>
             <div id="gantt-wrapper" class="flex-1 overflow-auto bg-[#0d0d0d]">
-                <div id="timeline-viewport" class="w-[1760px] relative min-h-full"> <div id="today-line"><span class="today-label">HOY</span></div>
+                <div id="timeline-viewport" class="w-[1760px] relative min-h-full">
+                    <div id="today-line"><span class="today-label">HOY</span></div>
                     <div id="timeline-scale" class="flex sticky top-0 z-50 bg-[#080808] border-b border-white/5 ml-[160px]"></div>
                     <div id="gantt-rows" class="pt-4 pb-24"></div>
                 </div>
