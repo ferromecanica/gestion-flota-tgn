@@ -17,41 +17,45 @@ let map, markersGroup;
 const minDate = new Date("2022-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 1600; 
+const viewportWidth = 1600; // El ancho útil de los años
 
 function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Posicionamiento preciso de la línea de HOY
     const hoy = new Date().getTime();
-    const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
+    // Sumamos 160 del ut-label para que la línea roja coincida con la escala
+    const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
 
     cargarDatos();
 }
 
-async function cargarDatos() {
+async function cargarDatos(offset = '') {
     const statusEl = document.getElementById('status');
     const hoyMillis = new Date().getTime();
     
     try {
-        const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?cacheBuster=${Date.now()}`, {
+        const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?offset=${offset}`;
+        const response = await fetch(url, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
         
-        if (data.records) {
-            // FILTRO DE ACTIVOS: Descartar si la Fecha Fin Visual ya pasó
-            todosLosRegistros = data.records.filter(r => {
-                const fechaFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
-                return fechaFin >= hoyMillis;
-            });
+        todosLosRegistros = [...todosLosRegistros, ...data.records];
 
-            statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ACTIVOS`;
-            dibujarMapa(todosLosRegistros);
+        if (data.offset) {
+            await cargarDatos(data.offset);
+        } else {
+            // Filtrar activos (sin fecha fin o fecha fin futura)
+            const activos = todosLosRegistros.filter(r => {
+                const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
+                return fFin >= hoyMillis;
+            });
+            statusEl.innerText = `SISTEMA OK | ${activos.length} EQUIPOS`;
+            dibujarMapa(activos);
         }
     } catch (e) { statusEl.innerText = "ERROR API"; }
 }
@@ -62,53 +66,50 @@ function showView(viewId, familia = null) {
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
-    document.querySelectorAll('.page-view').forEach(v => { if(v.id !== viewId) v.classList.add('hidden'); });
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
 
     if (viewId === 'home-view') {
         setTimeout(() => map.invalidateSize(), 100);
     } else {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]).toUpperCase() === familia.toUpperCase());
+        // Filtrar solo los movimientos activos de la familia
+        const hoyMillis = new Date().getTime();
+        const filtrados = todosLosRegistros.filter(r => {
+            const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
+            return String(r.fields["Familia"]).toUpperCase() === familia.toUpperCase() && fFin >= hoyMillis;
+        });
         dibujarGantt(filtrados);
     }
 }
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
-    const conteoPlantas = {};
+    const conteo = {};
 
     registros.forEach(r => {
         const f = r.fields;
-        const ut = f["UT Limpia"] || "S/D";
+        const ut = String(f["UT Limpia"] || "");
         const code = ut.substring(0, 3);
         const coords = coordenadasTGN[code];
         
         if (coords) {
-            // JITTER SUTIL: Desplaza los pines si hay más de uno en la planta
-            if (!conteoPlantas[code]) conteoPlantas[code] = 0;
-            const offset = conteoPlantas[code] * 0.008; 
-            conteoPlantas[code]++;
+            if (!conteo[code]) conteo[code] = 0;
+            // Jitter aumentado para que sea visible la superposición
+            const shift = conteo[code] * 0.045; 
+            conteo[code]++;
 
-            const esMuleto = f["Es Muleto"] === true;
-            const fam = String(f["Familia"]).toUpperCase();
+            const fam = String(f["Familia"] || "").toUpperCase();
+            const esTdr = ut.includes("TDR") || f["Es Muleto"] === true;
             
-            let color = "#E48A06"; // T70 (Naranja)
-            if (fam === "M100") color = "#1e40af"; // Azul
-            if (fam === "T60") color = "#0d9488"; // Teal
-            if (esMuleto) color = "#555"; // Gris
+            let color = "#E48A06";
+            if (fam === "M100") color = "#1e40af";
+            if (fam === "T60") color = "#0d9488";
+            if (esTdr) color = "#555";
 
-            L.circleMarker([coords[0] - offset, coords[1] + offset], {
+            L.circleMarker([coords[0] - shift, coords[1] + shift], {
                 radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`
-                <div style="font-family:'Inter'; font-size:12px;">
-                    <b style="color:${color}">${ut}</b><br>
-                    Turbina: ${f["Turbina Texto"]}<br>
-                    Familia: ${fam}<br>
-                    Horas: ${f["Horas Actuales"] || 0}
-                </div>
-            `);
+            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Familia: ${fam}`);
         }
     });
 }
@@ -125,8 +126,9 @@ function dibujarGantt(registros) {
 
     registros.forEach(r => {
         const f = r.fields;
-        const ut = f["UT Limpia"];
-        const fam = String(f["Familia"]).toUpperCase();
+        const ut = String(f["UT Limpia"] || "");
+        const fam = String(f["Familia"] || "").toUpperCase();
+        const esTdr = ut.includes("TDR") || f["Es Muleto"] === true;
         
         let colorClass = "bar-t70";
         if (fam === "M100") colorClass = "bar-m100";
@@ -141,13 +143,12 @@ function dibujarGantt(registros) {
         if (end > start) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
-            
             const row = document.createElement('div');
             row.className = 'timeline-row';
             row.innerHTML = `
                 <div class="ut-label">${ut}</div>
                 <div class="bar-box">
-                    <div class="bar ${colorClass} ${f["Es Muleto"] === true ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">
+                    <div class="bar ${colorClass} ${esTdr ? 'tdr' : ''}" style="left:${left}px; width:${width}px;">
                         ${f["Turbina Texto"] || "S/N"}
                     </div>
                 </div>`;
