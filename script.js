@@ -24,48 +24,52 @@ function init() {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
+    // Posicionamiento preciso de la línea de HOY
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth;
-    document.getElementById('today-line').style.left = hoyPos + 'px';
+    const line = document.getElementById('today-line');
+    if(line) line.style.left = hoyPos + 'px';
 
     cargarDatos();
 }
 
 async function cargarDatos() {
     const statusEl = document.getElementById('status');
+    const hoyMillis = new Date().getTime();
+    
     try {
         const response = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?cacheBuster=${Date.now()}`, {
             headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
         });
         const data = await response.json();
+        
         if (data.records) {
-            todosLosRegistros = data.records;
-            statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} MOV`;
-            
-            const activos = todosLosRegistros.filter(r => !r.fields["Fecha Fin"]);
-            dibujarMapa(activos);
+            // FILTRO DE ACTIVOS: Descartar si la Fecha Fin Visual ya pasó
+            todosLosRegistros = data.records.filter(r => {
+                const fechaFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
+                return fechaFin >= hoyMillis;
+            });
+
+            statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ACTIVOS`;
+            dibujarMapa(todosLosRegistros);
         }
     } catch (e) { statusEl.innerText = "ERROR API"; }
 }
 
 function showView(viewId, familia = null) {
-    // 1. Navegación
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    // 2. Visibilidad (Display none estricto)
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
-    const target = document.getElementById(viewId);
-    target.classList.add('active');
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
+    document.querySelectorAll('.page-view').forEach(v => { if(v.id !== viewId) v.classList.add('hidden'); });
+    document.getElementById(viewId).classList.add('active');
 
-    // 3. Acciones por vista
     if (viewId === 'home-view') {
-        setTimeout(() => map.invalidateSize(), 100); // Fix para el "congelado"
+        setTimeout(() => map.invalidateSize(), 100);
     } else {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        // Filtrado insensible a mayúsculas
         const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]).toUpperCase() === familia.toUpperCase());
         dibujarGantt(filtrados);
     }
@@ -73,7 +77,7 @@ function showView(viewId, familia = null) {
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
-    const conteo = {};
+    const conteoPlantas = {};
 
     registros.forEach(r => {
         const f = r.fields;
@@ -82,19 +86,29 @@ function dibujarMapa(registros) {
         const coords = coordenadasTGN[code];
         
         if (coords) {
-            if (!conteo[code]) conteo[code] = 0;
-            const shift = conteo[code] * 0.035; // Desplazamiento controlado
-            conteo[code]++;
+            // JITTER SUTIL: Desplaza los pines si hay más de uno en la planta
+            if (!conteoPlantas[code]) conteoPlantas[code] = 0;
+            const offset = conteoPlantas[code] * 0.008; 
+            conteoPlantas[code]++;
 
+            const esMuleto = f["Es Muleto"] === true;
             const fam = String(f["Familia"]).toUpperCase();
-            let color = "#E48A06"; // T70
-            if (fam === "M100") color = "#1e40af";
-            if (fam === "T60") color = "#0d9488";
-            if (f["Es Muleto"] === true) color = "#555";
+            
+            let color = "#E48A06"; // T70 (Naranja)
+            if (fam === "M100") color = "#1e40af"; // Azul
+            if (fam === "T60") color = "#0d9488"; // Teal
+            if (esMuleto) color = "#555"; // Gris
 
-            L.circleMarker([coords[0] - shift, coords[1] + shift], {
+            L.circleMarker([coords[0] - offset, coords[1] + offset], {
                 radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
+            }).addTo(markersGroup).bindPopup(`
+                <div style="font-family:'Inter'; font-size:12px;">
+                    <b style="color:${color}">${ut}</b><br>
+                    Turbina: ${f["Turbina Texto"]}<br>
+                    Familia: ${fam}<br>
+                    Horas: ${f["Horas Actuales"] || 0}
+                </div>
+            `);
         }
     });
 }
@@ -104,14 +118,16 @@ function dibujarGantt(registros) {
     container.innerHTML = '';
     
     const scale = document.getElementById('timeline-scale');
-    scale.innerHTML = ''; // Limpiamos para evitar duplicados
+    scale.innerHTML = ''; 
     for (let y = 2022; y <= 2031; y++) {
         scale.innerHTML += `<div class="year-block">${y}</div>`;
     }
 
     registros.forEach(r => {
         const f = r.fields;
+        const ut = f["UT Limpia"];
         const fam = String(f["Familia"]).toUpperCase();
+        
         let colorClass = "bar-t70";
         if (fam === "M100") colorClass = "bar-m100";
         if (fam === "T60") colorClass = "bar-t60";
@@ -125,10 +141,11 @@ function dibujarGantt(registros) {
         if (end > start) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
+            
             const row = document.createElement('div');
             row.className = 'timeline-row';
             row.innerHTML = `
-                <div class="ut-label">${f["UT Limpia"] || "S/D"}</div>
+                <div class="ut-label">${ut}</div>
                 <div class="bar-box">
                     <div class="bar ${colorClass} ${f["Es Muleto"] === true ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">
                         ${f["Turbina Texto"] || "S/N"}
