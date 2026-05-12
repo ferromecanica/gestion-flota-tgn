@@ -12,7 +12,7 @@
 </head>
 <body class="bg-[#0a0a0a] text-slate-100 font-['Inter'] overflow-hidden h-screen flex">
 
-    <aside class="w-72 bg-black border-r border-white/5 flex flex-col z-[1000] shrink-0">
+    <aside class="w-72 bg-black border-r border-white/5 flex flex-col z-[2000] shrink-0">
         <div class="p-6 border-b border-white/5 bg-zinc-900/10 flex justify-center">
             <img src="tgn_h.png" alt="TGN" class="w-full h-auto object-contain px-2">
         </div>
@@ -42,28 +42,29 @@
         </div>
 
         <div class="p-6 border-t border-white/5">
-            <div id="status" class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest text-center">Sincronizando...</div>
+            <div id="status" class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest text-center">Iniciando...</div>
         </div>
     </aside>
 
-    <main class="flex-1 relative">
-        <div id="home-view" class="page-view absolute inset-0 active">
+    <main class="flex-1 relative bg-black">
+        <div id="home-view" class="page-view absolute inset-0 z-10 active">
             <div id="map" class="w-full h-full"></div>
         </div>
 
-        <div id="gantt-view" class="page-view absolute inset-0 hidden bg-[#0d0d0d] flex flex-col">
-            <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/20">
+        <div id="gantt-view" class="page-view absolute inset-0 z-20 hidden bg-[#0d0d0d] flex flex-col">
+            <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/40">
                 <div>
                     <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Cronograma</span>
-                    <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1">PLAN OHL</h2>
+                    <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1 text-white">PLAN OHL</h2>
                 </div>
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Escala 2022-2031</div>
+                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Ventana: 2022 - 2031</div>
             </div>
-            <div id="gantt-wrapper" class="flex-1 overflow-auto">
+            <div id="gantt-wrapper" class="flex-1 overflow-auto bg-[#0d0d0d]">
                 <div id="timeline-viewport" class="w-[1600px] relative min-h-full">
                     <div id="today-line"><span class="today-label">HOY</span></div>
-                    <div id="timeline-scale" class="flex sticky top-0 z-30 bg-black border-b border-white/5 ml-[140px]"></div>
-                    <div id="gantt-rows" class="pt-4 pb-20"></div>
+                    <div id="timeline-scale" class="flex sticky top-0 z-50 bg-[#080808] border-b border-white/5 ml-[160px]">
+                        </div>
+                    <div id="gantt-rows" class="pt-4 pb-24"></div>
                 </div>
             </div>
         </div>
