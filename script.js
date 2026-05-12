@@ -39,10 +39,9 @@ async function cargarDatos() {
         });
         const data = await response.json();
         if (data.records) {
-            todosLosRegistros = data.records; // Guardamos TODO para el Gantt
-            statusEl.innerText = `OK | ${todosLosRegistros.length} MOVIMIENTOS`;
+            todosLosRegistros = data.records;
+            statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} MOV`;
             
-            // Para el mapa, filtramos solo los activos
             const activos = todosLosRegistros.filter(r => !r.fields["Fecha Fin"]);
             dibujarMapa(activos);
         }
@@ -50,27 +49,31 @@ async function cargarDatos() {
 }
 
 function showView(viewId, familia = null) {
+    // 1. Navegación
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
 
-    document.querySelectorAll('.page-view').forEach(v => v.classList.add('hidden'));
-    const activeView = document.getElementById(viewId);
-    activeView.classList.remove('hidden');
-    activeView.classList.add('active');
+    // 2. Visibilidad (Display none estricto)
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+    const target = document.getElementById(viewId);
+    target.classList.add('active');
 
-    if (viewId === 'gantt-view') {
+    // 3. Acciones por vista
+    if (viewId === 'home-view') {
+        setTimeout(() => map.invalidateSize(), 100); // Fix para el "congelado"
+    } else {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        // Filtrado por familia (sin importar Fecha Fin)
-        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]) === familia);
+        // Filtrado insensible a mayúsculas
+        const filtrados = todosLosRegistros.filter(r => String(r.fields["Familia"]).toUpperCase() === familia.toUpperCase());
         dibujarGantt(filtrados);
     }
 }
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
-    const conteoPlantas = {};
+    const conteo = {};
 
     registros.forEach(r => {
         const f = r.fields;
@@ -79,20 +82,17 @@ function dibujarMapa(registros) {
         const coords = coordenadasTGN[code];
         
         if (coords) {
-            // Lógica de desplazamiento para máquinas en la misma planta
-            if (!conteoPlantas[code]) conteoPlantas[code] = 0;
-            const offset = conteoPlantas[code] * 0.025; 
-            conteoPlantas[code]++;
+            if (!conteo[code]) conteo[code] = 0;
+            const shift = conteo[code] * 0.035; // Desplazamiento controlado
+            conteo[code]++;
 
-            const esMuleto = f["Es Muleto"] === true;
-            const fam = String(f["Familia"]);
-            
-            let color = "#E48A06"; // Default T70
+            const fam = String(f["Familia"]).toUpperCase();
+            let color = "#E48A06"; // T70
             if (fam === "M100") color = "#1e40af";
             if (fam === "T60") color = "#0d9488";
-            if (esMuleto) color = "#555";
+            if (f["Es Muleto"] === true) color = "#555";
 
-            L.circleMarker([coords[0] - offset, coords[1] + offset], {
+            L.circleMarker([coords[0] - shift, coords[1] + shift], {
                 radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
             }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Horas: ${f["Horas Actuales"] || 0}`);
         }
@@ -104,18 +104,17 @@ function dibujarGantt(registros) {
     container.innerHTML = '';
     
     const scale = document.getElementById('timeline-scale');
-    if (scale.innerHTML.trim() === "") {
-        for (let y = 2022; y <= 2031; y++) {
-            scale.innerHTML += `<div class="year-block">${y}</div>`;
-        }
+    scale.innerHTML = ''; // Limpiamos para evitar duplicados
+    for (let y = 2022; y <= 2031; y++) {
+        scale.innerHTML += `<div class="year-block">${y}</div>`;
     }
 
     registros.forEach(r => {
         const f = r.fields;
-        const ut = f["UT Limpia"] || "S/D";
-        const sn = f["Turbina Texto"] || "S/N";
-        const esMuleto = f["Es Muleto"] === true;
-        const fam = String(f["Familia"]);
+        const fam = String(f["Familia"]).toUpperCase();
+        let colorClass = "bar-t70";
+        if (fam === "M100") colorClass = "bar-m100";
+        if (fam === "T60") colorClass = "bar-t60";
 
         let start = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
         let end = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
@@ -126,14 +125,15 @@ function dibujarGantt(registros) {
         if (end > start) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
-            
-            let colorClass = "bar-t70";
-            if (fam === "M100") colorClass = "bar-m100";
-            if (fam === "T60") colorClass = "bar-t60";
-
             const row = document.createElement('div');
             row.className = 'timeline-row';
-            row.innerHTML = `<div class="ut-label">${ut}</div><div class="bar-box"><div class="bar ${colorClass} ${esMuleto ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">${sn}</div></div>`;
+            row.innerHTML = `
+                <div class="ut-label">${f["UT Limpia"] || "S/D"}</div>
+                <div class="bar-box">
+                    <div class="bar ${colorClass} ${f["Es Muleto"] === true ? 'muleto' : ''}" style="left:${left}px; width:${width}px;">
+                        ${f["Turbina Texto"] || "S/N"}
+                    </div>
+                </div>`;
             container.appendChild(row);
         }
     });
