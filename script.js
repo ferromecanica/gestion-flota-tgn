@@ -1,175 +1,64 @@
-const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced03db48ae8598ac7cd08c3a5810a'; 
-const BASE_ID = 'app3Zwi0sqRk5cTgw';
-const TABLE_ID = 'tblH7sZLmAYvRvFZT';
-
-const coordenadasTGN = {
-    "LMR": [-35.1070, -66.8301], "PUE": [-37.5477, -67.7343], "COC": [-36.3663, -67.0747],
-    "BEA": [-33.7947, -66.6455], "CHA": [-33.5766, -65.1026], "LCA": [-33.3240, -63.5604],
-    "TIO": [-32.2904, -63.2817], "JER": [-32.8688, -61.0766], "PIC": [-23.4114, -64.3337],
-    "LUM": [-25.2057, -64.9460], "DEA": [-30.3768, -64.3729], "LAV": [-27.9003, -64.8142],
-    "CAN": [-26.1248, -65.1696], "BEL": [-32.6302, -62.2319], "LEO": [-32.6302, -62.2319],
-    "BAL": [-33.1427, -62.3057], "SJA": [-38.0740, -69.0645]
-};
-
-let todosLosRegistros = [];
-let map, markersGroup;
-
-const minDate = new Date("2022-01-01").getTime();
-const maxDate = new Date("2032-01-01").getTime();
-const totalRange = maxDate - minDate;
-const viewportWidth = 1600; 
-
-function init() {
-    map = L.map('map').setView([-34.6, -63.6], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
-    markersGroup = L.layerGroup().addTo(map);
-    
-    const hoy = new Date().getTime();
-    const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
-    const line = document.getElementById('today-line');
-    if(line) line.style.left = hoyPos + 'px';
-
-    cargarDatos();
-}
-
-async function cargarDatos(offset = '') {
-    const statusEl = document.getElementById('status');
-    const hoyMillis = new Date().getTime();
-    
-    try {
-        const url = `https://api.airtable.com/v0/${BASE_ID}/${TABLE_ID}?offset=${offset}`;
-        const response = await fetch(url, {
-            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
-        });
-        const data = await response.json();
-        
-        todosLosRegistros = [...todosLosRegistros, ...data.records];
-
-        if (data.offset) {
-            await cargarDatos(data.offset);
-        } else {
-            const activos = todosLosRegistros.filter(r => {
-                const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
-                return fFin >= hoyMillis;
-            });
-            statusEl.innerText = `SISTEMA OK | ${activos.length} EQUIPOS`;
-            dibujarMapa(activos);
-        }
-    } catch (e) { statusEl.innerText = "ERROR API"; }
-}
-
-function showView(viewId, familia = null) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
-    });
-
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-
-    if (viewId === 'home-view') {
-        setTimeout(() => map.invalidateSize(), 100);
-    } else {
-        document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        const hoyMillis = new Date().getTime();
-        const filtrados = todosLosRegistros.filter(r => {
-            const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
-            return String(r.fields["Familia"]).toUpperCase() === familia.toUpperCase() && fFin >= hoyMillis;
-        });
-        dibujarGantt(filtrados);
-    }
-}
-
-function dibujarMapa(registros) {
-    markersGroup.clearLayers();
-    const conteo = {};
-
-    registros.forEach(r => {
-        const f = r.fields;
-        const ut = String(f["UT Limpia"] || "");
-        const code = ut.substring(0, 3);
-        const coords = coordenadasTGN[code];
-        
-        if (coords) {
-            if (!conteo[code]) conteo[code] = 0;
-            const shift = conteo[code] * 0.045; 
-            conteo[code]++;
-
-            const fam = String(f["Familia"] || "").toUpperCase();
-            // Prioridad absoluta al Checkbox de Muleto de Airtable
-            const esMuleto = f["Es Muleto"] === true;
-            
-            let color = "#E48A06";
-            if (fam === "M100") color = "#1e40af";
-            if (fam === "T60") color = "#0d9488";
-            if (esMuleto) color = "#555";
-
-            L.circleMarker([coords[0] - shift, coords[1] + shift], {
-                radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`<b>${ut}</b><br>${f["Turbina Texto"]}<br>Familia: ${fam}`);
-        }
-    });
-}
-
 function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     container.innerHTML = '';
     
-    // ORDENAR: Máquinas activas arriba, TDRs/Muletos abajo
-    const registrosOrdenados = [...registros].sort((a, b) => {
-        const isA_Tdr = String(a.fields["UT Limpia"]).includes("TDR") || a.fields["Es Muleto"] === true;
-        const isB_Tdr = String(b.fields["UT Limpia"]).includes("TDR") || b.fields["Es Muleto"] === true;
-        return isA_Tdr - isB_Tdr;
+    // 1. Agrupar movimientos por UT
+    const gruposPorUT = {};
+    registros.forEach(r => {
+        const ut = String(r.fields["UT Limpia"] || "S/D");
+        if (!gruposPorUT[ut]) gruposPorUT[ut] = [];
+        gruposPorUT[ut].push(r);
     });
 
-    const scale = document.getElementById('timeline-scale');
-    scale.innerHTML = ''; 
-    for (let y = 2022; y <= 2031; y++) {
-        scale.innerHTML += `<div class="year-block">${y}</div>`;
-    }
+    // 2. Ordenar las UTs (Activas arriba, TDR abajo)
+    const utsOrdenadas = Object.keys(gruposPorUT).sort((a, b) => {
+        const aIsTdr = a.includes("TDR") || gruposPorUT[a][0].fields["Es Muleto"];
+        const bIsTdr = b.includes("TDR") || gruposPorUT[b][0].fields["Es Muleto"];
+        return aIsTdr - bIsTdr;
+    });
 
-    registrosOrdenados.forEach(r => {
-        const f = r.fields;
-        const ut = String(f["UT Limpia"] || "");
-        const fam = String(f["Familia"] || "").toUpperCase();
+    // 3. Dibujar una fila por UT y sus múltiples barras
+    utsOrdenadas.forEach(ut => {
+        const movimientos = gruposPorUT[ut];
+        const row = document.createElement('div');
+        row.className = 'timeline-row';
         
-        // Verificación estricta de Muleto por Checkbox
-        const esMuleto = f["Es Muleto"] === true;
-        const esTdrVisual = ut.includes("TDR");
+        let barrasHTML = '';
+        movimientos.forEach(m => {
+            const f = m.fields;
+            const fam = String(f["Familia"] || "").toUpperCase();
+            const esMuleto = f["Es Muleto"] === true;
+            const hoyMillis = new Date().getTime();
 
-        let colorClass = "bar-t70";
-        if (fam === "M100") colorClass = "bar-m100";
-        if (fam === "T60") colorClass = "bar-t60";
-
-        let start = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
-        let end = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
-        
-        start = Math.max(start, minDate);
-        end = Math.min(end, maxDate);
-
-        if (end > start) {
-            const left = ((start - minDate) / totalRange) * viewportWidth;
-            const width = ((end - start) / totalRange) * viewportWidth;
+            let start = f["Fecha"] ? new Date(f["Fecha"]).getTime() : minDate;
+            let end = f["Fecha Fin Visual"] ? new Date(f["Fecha Fin Visual"]).getTime() : maxDate;
             
-            // Construcción del Tooltip (Hover)
-            const proxOHL = f["Prox OHL"] || "S/D";
-            const horas = f["Horas Actuales"] || "0";
-            const tooltip = `S/N: ${f["Turbina Texto"]}\nHoras: ${horas}\nProx OHL: ${proxOHL}`;
+            // Lógica de estilo para el futuro
+            const esFuturo = start > hoyMillis;
+            const claseFuturo = esFuturo ? 'bar-futura' : '';
 
-            const row = document.createElement('div');
-            row.className = 'timeline-row';
-            row.innerHTML = `
-                <div class="ut-label">${ut}</div>
-                <div class="bar-box">
-                    <div class="bar ${colorClass} ${esMuleto ? 'muleto' : (esTdrVisual ? 'tdr' : '')}" 
+            let colorClass = "bar-t70";
+            if (fam === "M100") colorClass = "bar-m100";
+            if (fam === "T60") colorClass = "bar-t60";
+
+            if (end > start) {
+                const left = ((start - minDate) / totalRange) * viewportWidth;
+                const width = ((end - start) / totalRange) * viewportWidth;
+                const tooltip = `S/N: ${f["Turbina Texto"]}\nInicio: ${f["Fecha"]}\nFin: ${f["Fecha Fin Visual"]}\nHoras: ${f["Horas Actuales"] || 0}`;
+
+                barrasHTML += `
+                    <div class="bar ${colorClass} ${esMuleto ? 'muleto' : ''} ${claseFuturo}" 
                          style="left:${left}px; width:${width}px;"
                          title="${tooltip}">
                         ${f["Turbina Texto"] || "S/N"}
-                    </div>
-                </div>`;
-            container.appendChild(row);
-        }
+                    </div>`;
+            }
+        });
+
+        row.innerHTML = `
+            <div class="ut-label">${ut}</div>
+            <div class="bar-box">${barrasHTML}</div>
+        `;
+        container.appendChild(row);
     });
 }
-
-window.onload = init;
