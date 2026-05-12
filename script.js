@@ -17,7 +17,7 @@ let map, markersGroup;
 const minDate = new Date("2022-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 1600; // El ancho útil de los años
+const viewportWidth = 1600; 
 
 function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
@@ -25,7 +25,6 @@ function init() {
     markersGroup = L.layerGroup().addTo(map);
     
     const hoy = new Date().getTime();
-    // Sumamos 160 del ut-label para que la línea roja coincida con la escala
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
@@ -49,7 +48,6 @@ async function cargarDatos(offset = '') {
         if (data.offset) {
             await cargarDatos(data.offset);
         } else {
-            // Filtrar activos (sin fecha fin o fecha fin futura)
             const activos = todosLosRegistros.filter(r => {
                 const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
                 return fFin >= hoyMillis;
@@ -73,7 +71,6 @@ function showView(viewId, familia = null) {
         setTimeout(() => map.invalidateSize(), 100);
     } else {
         document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        // Filtrar solo los movimientos activos de la familia
         const hoyMillis = new Date().getTime();
         const filtrados = todosLosRegistros.filter(r => {
             const fFin = r.fields["Fecha Fin Visual"] ? new Date(r.fields["Fecha Fin Visual"]).getTime() : Infinity;
@@ -95,17 +92,17 @@ function dibujarMapa(registros) {
         
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
-            // Jitter aumentado para que sea visible la superposición
             const shift = conteo[code] * 0.045; 
             conteo[code]++;
 
             const fam = String(f["Familia"] || "").toUpperCase();
-            const esTdr = ut.includes("TDR") || f["Es Muleto"] === true;
+            // Prioridad absoluta al Checkbox de Muleto de Airtable
+            const esMuleto = f["Es Muleto"] === true;
             
             let color = "#E48A06";
             if (fam === "M100") color = "#1e40af";
             if (fam === "T60") color = "#0d9488";
-            if (esTdr) color = "#555";
+            if (esMuleto) color = "#555";
 
             L.circleMarker([coords[0] - shift, coords[1] + shift], {
                 radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
@@ -118,18 +115,28 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     container.innerHTML = '';
     
+    // ORDENAR: Máquinas activas arriba, TDRs/Muletos abajo
+    const registrosOrdenados = [...registros].sort((a, b) => {
+        const isA_Tdr = String(a.fields["UT Limpia"]).includes("TDR") || a.fields["Es Muleto"] === true;
+        const isB_Tdr = String(b.fields["UT Limpia"]).includes("TDR") || b.fields["Es Muleto"] === true;
+        return isA_Tdr - isB_Tdr;
+    });
+
     const scale = document.getElementById('timeline-scale');
     scale.innerHTML = ''; 
     for (let y = 2022; y <= 2031; y++) {
         scale.innerHTML += `<div class="year-block">${y}</div>`;
     }
 
-    registros.forEach(r => {
+    registrosOrdenados.forEach(r => {
         const f = r.fields;
         const ut = String(f["UT Limpia"] || "");
         const fam = String(f["Familia"] || "").toUpperCase();
-        const esTdr = ut.includes("TDR") || f["Es Muleto"] === true;
         
+        // Verificación estricta de Muleto por Checkbox
+        const esMuleto = f["Es Muleto"] === true;
+        const esTdrVisual = ut.includes("TDR");
+
         let colorClass = "bar-t70";
         if (fam === "M100") colorClass = "bar-m100";
         if (fam === "T60") colorClass = "bar-t60";
@@ -143,12 +150,20 @@ function dibujarGantt(registros) {
         if (end > start) {
             const left = ((start - minDate) / totalRange) * viewportWidth;
             const width = ((end - start) / totalRange) * viewportWidth;
+            
+            // Construcción del Tooltip (Hover)
+            const proxOHL = f["Prox OHL"] || "S/D";
+            const horas = f["Horas Actuales"] || "0";
+            const tooltip = `S/N: ${f["Turbina Texto"]}\nHoras: ${horas}\nProx OHL: ${proxOHL}`;
+
             const row = document.createElement('div');
             row.className = 'timeline-row';
             row.innerHTML = `
                 <div class="ut-label">${ut}</div>
                 <div class="bar-box">
-                    <div class="bar ${colorClass} ${esTdr ? 'tdr' : ''}" style="left:${left}px; width:${width}px;">
+                    <div class="bar ${colorClass} ${esMuleto ? 'muleto' : (esTdrVisual ? 'tdr' : '')}" 
+                         style="left:${left}px; width:${width}px;"
+                         title="${tooltip}">
                         ${f["Turbina Texto"] || "S/N"}
                     </div>
                 </div>`;
