@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TGN Control | Operaciones</title>
+    <title>TGN Control | Gestión de Flota</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -18,11 +18,11 @@
         </div>
 
         <div class="flex-1 p-4 space-y-2 mt-4">
-            <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em] px-4 block mb-4 opacity-50">Gestión de Flota</span>
+            <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em] px-4 block mb-4 opacity-50">Monitoreo Técnico</span>
             
             <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all group">
                 <i class="fas fa-map-marked-alt text-[#E48A06]"></i>
-                <span class="font-black uppercase text-[11px] tracking-widest">Mapa Global</span>
+                <span class="font-black uppercase text-[11px] tracking-widest">Mapa de Activos</span>
             </button>
 
             <button onclick="showView('gantt-view', 'M100')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
@@ -47,6 +47,7 @@
     </aside>
 
     <main class="flex-1 relative bg-black">
+        
         <div id="home-view" class="page-view absolute inset-0 z-10 active">
             <div id="map" class="w-full h-full"></div>
         </div>
@@ -54,20 +55,29 @@
         <div id="gantt-view" class="page-view absolute inset-0 z-20 hidden bg-[#0d0d0d] flex flex-col">
             <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/20">
                 <div>
-                    <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Cronograma</span>
+                    <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Proyección Estratégica</span>
                     <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1 text-white">PLAN OHL</h2>
                 </div>
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1">Periodo 2022-2031</div>
+                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1 text-right">
+                    Vista de 12 Años<br>Periodo 2020 - 2031
+                </div>
             </div>
+
             <div id="gantt-wrapper" class="flex-1 overflow-auto bg-[#0d0d0d]">
-                <div id="timeline-viewport" class="w-[1760px] relative min-h-full">
-                    <div id="today-line"><span class="today-label">HOY</span></div>
+                <div id="timeline-viewport" class="relative min-h-full">
+                    <div id="today-line">
+                        <span class="today-label">HOY</span>
+                    </div>
+                    
                     <div id="timeline-scale" class="flex sticky top-0 z-50 bg-[#080808] border-b border-white/5 ml-[160px]"></div>
+                    
                     <div id="gantt-rows" class="pt-4 pb-24"></div>
                 </div>
             </div>
         </div>
     </main>
+
+    <div id="custom-tooltip"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
