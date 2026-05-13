@@ -16,18 +16,16 @@ const coordenadasTGN = {
 let todosLosRegistros = [];
 let map, markersGroup;
 
-// NUEVA ESCALA: 2020 A 2031 (12 años)
 const minDate = new Date("2020-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 1320; // 110px por año * 12 años
+const viewportWidth = 1320; 
 
 function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Posicionamiento de línea HOY basado en 2020
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
@@ -40,34 +38,34 @@ async function cargarDatosMaestros() {
     const statusEl = document.getElementById('status');
     try {
         const [resMov, resPlan] = await Promise.all([
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
         ]);
 
         const dataMov = await resMov.json();
         const dataPlan = await resPlan.json();
 
-        // USAMOS TURBINA TEXTO para evitar los rec... IDs
-        let registros = (dataMov.records || []).map(r => ({
-            ut: String(r.fields["UT"] || ""),
-            sn: String(r.fields["Turbina Texto"] || r.fields["S/N"] || "S/N"),
-            inicio: r.fields["FECHA INICIO"],
-            fin: r.fields["FECHA FIN"],
-            familia: r.fields["FAMILIA"],
-            muleto: r.fields["Es Muleto"] === "1 checked out of 1" || r.fields["Es Muleto"] === true,
-            proxOHL: r.fields["Prox OHL"] || "S/D"
-        }));
+        let registros = (dataMov.records || []).map(r => {
+            const f = r.fields;
+            return {
+                ut: String(f["UT"] || ""),
+                sn: String(f["Turbina Texto"] || f["S/N"] || "S/N"),
+                inicio: f["FECHA INICIO"],
+                fin: f["FECHA FIN"],
+                familia: f["FAMILIA"],
+                // Checkbox "Es Muleto"
+                muleto: f["Es Muleto"] === true || f["Es Muleto"] === "1 checked out of 1",
+                proxOHL: f["Próximo OHL"] || f["Prox OHL"] || "S/D"
+            };
+        });
 
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
-            
-            // Cortar la actual
             registros.forEach(r => {
                 if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"];
             });
 
-            // Nueva barra planificada
             registros.push({
                 ut: utEvento,
                 sn: f["S/N IN"] || "POR DEFINIR",
@@ -75,6 +73,7 @@ async function cargarDatosMaestros() {
                 fin: null,
                 familia: f["FAMILIA"],
                 muleto: f["DESTINO OUT"] === "TDR (Muleto)",
+                proxOHL: "Planificado",
                 esPlan: true
             });
         });
@@ -111,6 +110,9 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
+        // FILTRO TDR: Si es una ubicación TDR, solo mostrar si tiene el check de muleto
+        if (r.ut.includes("TDR") && !r.muleto) return;
+
         const code = r.ut.substring(0, 3);
         const coords = coordenadasTGN[code];
         if (coords) {
@@ -132,6 +134,9 @@ function dibujarGantt(registros) {
 
     const grupos = {};
     registros.forEach(r => {
+        // FILTRO TDR PARA GANTT: Solo mostrar muletos reales en ubicaciones TDR
+        if (r.ut.includes("TDR") && !r.muleto) return;
+        
         if (!grupos[r.ut]) grupos[r.ut] = [];
         grupos[r.ut].push(r);
     });
@@ -155,7 +160,17 @@ function dibujarGantt(registros) {
         
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            let end = m.fin ? new Date(m.fin).getTime() : maxDate;
+            
+            // LÓGICA DE CORTE: Si FECHA FIN es vacía, usar Próximo OHL como fin de la barra
+            let end;
+            if (m.fin) {
+                end = new Date(m.fin).getTime();
+            } else if (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado") {
+                end = new Date(m.proxOHL).getTime();
+            } else {
+                end = maxDate;
+            }
+
             start = Math.max(start, minDate);
             end = Math.min(end, maxDate);
 
@@ -164,7 +179,12 @@ function dibujarGantt(registros) {
                 const width = ((end - start) / totalRange) * viewportWidth;
                 const esFuturo = m.esPlan || start > hoyMillis;
                 const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
-                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Inicio'}\nProx OHL: ${m.proxOHL}`;
+                
+                // Formatear fecha para el tooltip
+                let proxTxt = m.proxOHL;
+                if (proxTxt instanceof Date) proxTxt = proxTxt.toLocaleDateString();
+
+                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Manual'}\nPróximo OHL: ${proxTxt}`;
 
                 barrasHTML += `<div class="bar ${colorClass} ${m.muleto || ut.includes('TDR') ? 'tdr' : ''} ${esFuturo ? 'bar-futura' : ''}" 
                                     style="left:${left}px; width:${width}px;" title="${tooltip}">
