@@ -3,9 +3,10 @@
     --m100-blue: #1e40af; 
     --t60-teal: #0d9488; 
     --tdr-gray: #555555;
-    --plan-gray: #444444; 
+    --plan-navy: #1e1b4b; /* Azul marino para movimientos futuros */
 }
 
+/* Navegación y Estructura */
 .page-view { display: none !important; }
 .page-view.active { display: flex !important; }
 #home-view.active { display: block !important; }
@@ -18,12 +19,8 @@
 
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Grilla Gantt */
 #timeline-viewport { 
-    width: 1480px; 
-    background: #0d0d0d; 
-    position: relative;
-    min-height: 100%;
+    width: 1480px; background: #0d0d0d; position: relative; min-height: 100%;
 }
 
 #timeline-scale { display: flex; flex-direction: row; }
@@ -62,13 +59,15 @@
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-/* Barras Planificadas (Futuro) */
+/* Barras Planificadas (Azul Marino Sobrio) */
 .bar-futura {
-    background: var(--plan-gray) !important; color: #aaa !important;
-    border: 1px dashed #666 !important; box-shadow: none !important;
+    background: var(--plan-navy) !important; 
+    color: #94a3b8 !important;
+    border: 1px dashed #334155 !important; 
+    box-shadow: none !important;
 }
 
-/* Barras de Reparación USA (Rayado) */
+/* Barras en Reparación USA (Rayado) */
 .bar-repa {
     background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important;
     border: 1px solid #555 !important; color: #888 !important; opacity: 0.9;
@@ -78,7 +77,6 @@
 
 /* Línea de HOY */
 #today-line { position: absolute; top: 0; bottom: 0; width: 2px; background-color: #ff4444; z-index: 40; pointer-events: none; }
-.today-label { position: absolute; top: 52px; left: 5px; background: #ff4444; color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; }
 
 /* Tooltip Custom */
 #custom-tooltip {
@@ -87,7 +85,6 @@
     pointer-events: none; box-shadow: 0 15px 35px rgba(0,0,0,0.8); backdrop-filter: blur(8px);
     transform: scale(0.95); opacity: 0; transition: transform 0.1s ease-out, opacity 0.1s ease-out;
 }
-
 #custom-tooltip.visible { display: block; transform: scale(1); opacity: 1; }
 .tooltip-header { border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 6px; margin-bottom: 8px; font-weight: 900; text-transform: uppercase; font-size: 13px; }
 .tooltip-row { display: flex; justify-content: space-between; gap: 30px; margin-bottom: 4px; }
