@@ -88,7 +88,7 @@ async function cargarDatosMaestros() {
         });
 
         todosLosRegistros = registros;
-        statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ITEMS`;
+        statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
         const hoy = new Date().getTime();
         dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy));
     } catch (e) { statusEl.innerText = "ERROR CARGA"; }
@@ -98,7 +98,9 @@ function formatMMYYYY(dateString) {
     if (!dateString || dateString === "S/D" || dateString === "Planificado") return dateString;
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${mm}-${yyyy}`;
 }
 
 function showView(viewId, familia = null) {
@@ -122,7 +124,10 @@ function dibujarMapa(registros) {
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
-            const color = r.muleto ? "#555" : (r.familia === "M100" ? "#1e40af" : (r.familia === "T60" ? "#0d9488" : "#E48A06"));
+            let color = "#E48A06";
+            if (r.familia === "M100") color = "#1e40af";
+            if (r.familia === "T60") color = "#0d9488";
+            if (r.muleto) color = "#555";
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(`<b>${r.ut}</b><br>SN: ${r.sn}`);
         }
     });
@@ -133,12 +138,10 @@ function dibujarGantt(registros) {
     const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
     
-    // 1. Escala de años
     const scale = document.getElementById('timeline-scale');
     scale.innerHTML = ''; 
     for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
 
-    // 2. Agrupar UTs
     const grupos = {};
     registros.forEach(r => {
         if (r.ut.includes("TDR") && !r.muleto) return;
@@ -148,7 +151,6 @@ function dibujarGantt(registros) {
 
     const uts = Object.keys(grupos).sort((a,b) => (a.includes("TDR") || grupos[a][0].muleto) - (b.includes("TDR") || grupos[b][0].muleto));
 
-    // 3. Dibujar Filas
     uts.forEach(ut => {
         const row = document.createElement('div');
         row.className = 'timeline-row';
@@ -171,7 +173,12 @@ function dibujarGantt(registros) {
             if (end > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((end - start) / totalRange) * viewportWidth;
-                const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
+                
+                let colorHex = "#E48A06";
+                let colorClass = "bar-t70";
+                if (m.familia === "M100") { colorClass = "bar-m100"; colorHex = "#1e40af"; }
+                if (m.familia === "T60") { colorClass = "bar-t60"; colorHex = "#0d9488"; }
+                if (m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${colorClass} ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''}`;
@@ -180,8 +187,9 @@ function dibujarGantt(registros) {
                 bar.innerText = m.sn;
 
                 bar.onmouseenter = (e) => {
+                    tooltip.style.borderColor = colorHex;
                     tooltip.innerHTML = `
-                        <div class="tooltip-header">S/N: ${m.sn}</div>
+                        <div class="tooltip-header" style="color:${colorHex}; border-bottom-color: ${colorHex}44;">S/N: ${m.sn}</div>
                         <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
