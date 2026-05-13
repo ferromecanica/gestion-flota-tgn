@@ -62,14 +62,14 @@ async function cargarDatosMaestros() {
 
         let registros = (dataMov.records || []).map(r => {
             const f = r.fields;
-            const snLinkID = (Array.isArray(f["S/N"]) && f["S/N"].length > 0) ? f["S/N"][0] : null;
-            const info = diccionarioTurbinas[snLinkID] || {};
+            const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
+            const info = diccionarioTurbinas[snRef] || {};
             return {
                 ut: String(f["UT"] || ""),
                 sn: info.snReal || String(f["S/N"] || "S/N"),
                 inicio: f["FECHA INICIO"],
                 fin: f["FECHA FIN"],
-                familia: f["FAMILIA"],
+                familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
                 muleto: info.esMuleto || false,
                 proxOHL: info.proxOHL || "S/D",
                 horas: info.horas || "0"
@@ -79,10 +79,11 @@ async function cargarDatosMaestros() {
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
+            const famPlan = String(f["FAMILIA"] || "").trim().toUpperCase();
             registros.forEach(r => { if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"]; });
             registros.push({
                 ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: f["FECHA MOVIMIENTO"],
-                fin: null, familia: f["FAMILIA"], muleto: f["DESTINO OUT"] === "TDR (Muleto)",
+                fin: null, familia: famPlan, muleto: f["DESTINO OUT"] === "TDR (Muleto)",
                 proxOHL: "Planificado", horas: "-", esPlan: true
             });
         });
@@ -98,9 +99,7 @@ function formatMMYYYY(dateString) {
     if (!dateString || dateString === "S/D" || dateString === "Planificado") return dateString;
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return dateString;
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${mm}-${yyyy}`;
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 }
 
 function showView(viewId, familia = null) {
@@ -111,7 +110,7 @@ function showView(viewId, familia = null) {
     document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
     document.getElementById(viewId).classList.add('active');
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 100);
-    else dibujarGantt(todosLosRegistros.filter(r => String(r.familia).toUpperCase() === familia.toUpperCase()));
+    else dibujarGantt(todosLosRegistros.filter(r => r.familia === String(familia).toUpperCase()));
 }
 
 function dibujarMapa(registros) {
@@ -154,7 +153,6 @@ function dibujarGantt(registros) {
     uts.forEach(ut => {
         const row = document.createElement('div');
         row.className = 'timeline-row';
-        
         const label = document.createElement('div');
         label.className = 'ut-label';
         label.innerText = ut;
@@ -190,7 +188,7 @@ function dibujarGantt(registros) {
                     tooltip.style.borderColor = colorHex;
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex}; border-bottom-color: ${colorHex}44;">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Horas Actuales:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
                     `;
