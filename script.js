@@ -3,6 +3,7 @@ const BASE_ID = 'app3Zwi0sqRk5cTgw';
 
 const T_MOV = 'MOVIMIENTOS';
 const T_PLAN = 'PLANIFICACION';
+const T_TURB = 'TURBINAS';
 
 const coordenadasTGN = {
     "LMR": [-35.1070, -66.8301], "PUE": [-37.5477, -67.7343], "COC": [-36.3663, -67.0747],
@@ -14,6 +15,7 @@ const coordenadasTGN = {
 };
 
 let todosLosRegistros = [];
+let diccionarioTurbinas = {}; // Para guardar OHL y Muleto por S/N
 let map, markersGroup;
 
 const minDate = new Date("2020-01-01").getTime();
@@ -37,28 +39,45 @@ function init() {
 async function cargarDatosMaestros() {
     const statusEl = document.getElementById('status');
     try {
-        const [resMov, resPlan] = await Promise.all([
+        const [resMov, resPlan, resTurb] = await Promise.all([
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
         ]);
 
         const dataMov = await resMov.json();
         const dataPlan = await resPlan.json();
+        const dataTurb = await resTurb.json();
 
-        let registros = (dataMov.records || []).map(r => {
-            const f = r.fields;
-            return {
-                ut: String(f["UT"] || ""),
-                sn: String(f["Turbina Texto"] || f["S/N"] || "S/N"),
-                inicio: f["FECHA INICIO"],
-                fin: f["FECHA FIN"],
-                familia: f["FAMILIA"],
-                // Checkbox "Es Muleto"
-                muleto: f["Es Muleto"] === true || f["Es Muleto"] === "1 checked out of 1",
-                proxOHL: f["Próximo OHL"] || f["Prox OHL"] || "S/D"
+        // 1. Crear diccionario de Turbinas (OHL y Muleto)
+        diccionarioTurbinas = {};
+        (dataTurb.records || []).forEach(t => {
+            const f = t.fields;
+            diccionarioTurbinas[String(f["S/N"]).trim()] = {
+                proxOHL: f["Próximo OHL"] || null,
+                esMuleto: f["Muleto TGN?"] === true || f["Muleto TGN?"] === "checked"
             };
         });
 
+        // 2. Procesar Movimientos
+        let registros = (dataMov.records || []).map(r => {
+            const f = r.fields;
+            const sn = String(f["S/N"] || f["Turbina Texto"] || "").trim();
+            const infoExtra = diccionarioTurbinas[sn] || {};
+            
+            return {
+                ut: String(f["UT"] || ""),
+                sn: sn,
+                inicio: f["FECHA INICIO"],
+                fin: f["FECHA FIN"],
+                familia: f["FAMILIA"],
+                // Prioridad al dato de la tabla TURBINAS, si no al de MOVIMIENTOS
+                muleto: infoExtra.esMuleto !== undefined ? infoExtra.esMuleto : (f["Es Muleto"] === true || f["Es Muleto"] === "1 checked out of 1"),
+                proxOHL: infoExtra.proxOHL || "S/D"
+            };
+        });
+
+        // 3. Procesar Planificación (Swaps)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -85,7 +104,7 @@ async function cargarDatosMaestros() {
         const activos = todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy);
         dibujarMapa(activos);
 
-    } catch (e) { statusEl.innerText = "ERROR API"; }
+    } catch (e) { statusEl.innerText = "ERROR API"; console.error(e); }
 }
 
 function showView(viewId, familia = null) {
@@ -110,7 +129,7 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
-        // FILTRO TDR: Si es una ubicación TDR, solo mostrar si tiene el check de muleto
+        // FILTRO TDR: Si es ubicación TDR, solo mostrar si el Checkbox Muleto es verdadero
         if (r.ut.includes("TDR") && !r.muleto) return;
 
         const code = r.ut.substring(0, 3);
@@ -134,7 +153,7 @@ function dibujarGantt(registros) {
 
     const grupos = {};
     registros.forEach(r => {
-        // FILTRO TDR PARA GANTT: Solo mostrar muletos reales en ubicaciones TDR
+        // Solo mostramos en TDR si es Muleto confirmado
         if (r.ut.includes("TDR") && !r.muleto) return;
         
         if (!grupos[r.ut]) grupos[r.ut] = [];
@@ -161,7 +180,7 @@ function dibujarGantt(registros) {
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
             
-            // LÓGICA DE CORTE: Si FECHA FIN es vacía, usar Próximo OHL como fin de la barra
+            // LÓGICA DE CORTE POR OHL
             let end;
             if (m.fin) {
                 end = new Date(m.fin).getTime();
@@ -180,11 +199,12 @@ function dibujarGantt(registros) {
                 const esFuturo = m.esPlan || start > hoyMillis;
                 const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
                 
-                // Formatear fecha para el tooltip
-                let proxTxt = m.proxOHL;
-                if (proxTxt instanceof Date) proxTxt = proxTxt.toLocaleDateString();
+                let ohlTxt = m.proxOHL;
+                if (ohlTxt && ohlTxt !== "S/D" && ohlTxt !== "Planificado") {
+                    ohlTxt = new Date(ohlTxt).toLocaleDateString();
+                }
 
-                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Manual'}\nPróximo OHL: ${proxTxt}`;
+                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Manual'}\nPróximo OHL: ${ohlTxt}`;
 
                 barrasHTML += `<div class="bar ${colorClass} ${m.muleto || ut.includes('TDR') ? 'tdr' : ''} ${esFuturo ? 'bar-futura' : ''}" 
                                     style="left:${left}px; width:${width}px;" title="${tooltip}">
