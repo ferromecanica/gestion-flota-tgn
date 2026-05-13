@@ -15,9 +15,10 @@ const coordenadasTGN = {
 };
 
 let todosLosRegistros = [];
-let diccionarioTurbinas = {}; // Para guardar OHL y Muleto por S/N
+let diccionarioTurbinas = {}; // Mapa: ID de Registro -> Datos de Turbina
 let map, markersGroup;
 
+// ESCALA FIJA: 2020 A 2031 (12 años)
 const minDate = new Date("2020-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
@@ -49,35 +50,36 @@ async function cargarDatosMaestros() {
         const dataPlan = await resPlan.json();
         const dataTurb = await resTurb.json();
 
-        // 1. Crear diccionario de Turbinas (OHL y Muleto)
+        // 1. Mapear TURBINAS por su ID de registro de Airtable
         diccionarioTurbinas = {};
         (dataTurb.records || []).forEach(t => {
             const f = t.fields;
-            diccionarioTurbinas[String(f["S/N"]).trim()] = {
+            diccionarioTurbinas[t.id] = {
+                snReal: f["S/N"] || "S/N",
                 proxOHL: f["Próximo OHL"] || null,
                 esMuleto: f["Muleto TGN?"] === true || f["Muleto TGN?"] === "checked"
             };
         });
 
-        // 2. Procesar Movimientos
+        // 2. Procesar MOVIMIENTOS cruzando con el diccionario
         let registros = (dataMov.records || []).map(r => {
             const f = r.fields;
-            const sn = String(f["S/N"] || f["Turbina Texto"] || "").trim();
-            const infoExtra = diccionarioTurbinas[sn] || {};
-            
+            // Si S/N es un link, r.fields["S/N"] es un array de IDs [ "rec..." ]
+            const snLinkID = (Array.isArray(f["S/N"]) && f["S/N"].length > 0) ? f["S/N"][0] : null;
+            const infoTurbina = diccionarioTurbinas[snLinkID] || {};
+
             return {
                 ut: String(f["UT"] || ""),
-                sn: sn,
+                sn: infoTurbina.snReal || String(f["S/N"] || "S/N"),
                 inicio: f["FECHA INICIO"],
                 fin: f["FECHA FIN"],
                 familia: f["FAMILIA"],
-                // Prioridad al dato de la tabla TURBINAS, si no al de MOVIMIENTOS
-                muleto: infoExtra.esMuleto !== undefined ? infoExtra.esMuleto : (f["Es Muleto"] === true || f["Es Muleto"] === "1 checked out of 1"),
-                proxOHL: infoExtra.proxOHL || "S/D"
+                muleto: infoTurbina.esMuleto || false,
+                proxOHL: infoTurbina.proxOHL || "S/D"
             };
         });
 
-        // 3. Procesar Planificación (Swaps)
+        // 3. Procesar PLANIFICACION
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -98,13 +100,13 @@ async function cargarDatosMaestros() {
         });
 
         todosLosRegistros = registros;
-        statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ITEMS`;
+        statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
         
         const hoy = new Date().getTime();
         const activos = todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy);
         dibujarMapa(activos);
 
-    } catch (e) { statusEl.innerText = "ERROR API"; console.error(e); }
+    } catch (e) { statusEl.innerText = "ERROR CARGA"; }
 }
 
 function showView(viewId, familia = null) {
@@ -129,7 +131,7 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
-        // FILTRO TDR: Si es ubicación TDR, solo mostrar si el Checkbox Muleto es verdadero
+        // FILTRO TDR: Si la UT dice TDR, solo mostramos si es Muleto confirmado
         if (r.ut.includes("TDR") && !r.muleto) return;
 
         const code = r.ut.substring(0, 3);
@@ -153,7 +155,7 @@ function dibujarGantt(registros) {
 
     const grupos = {};
     registros.forEach(r => {
-        // Solo mostramos en TDR si es Muleto confirmado
+        // Filtro estricto para ubicaciones Taller/TDR
         if (r.ut.includes("TDR") && !r.muleto) return;
         
         if (!grupos[r.ut]) grupos[r.ut] = [];
@@ -180,7 +182,7 @@ function dibujarGantt(registros) {
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
             
-            // LÓGICA DE CORTE POR OHL
+            // RECORTE POR OHL: Si no hay fecha fin, cortamos en Próximo OHL
             let end;
             if (m.fin) {
                 end = new Date(m.fin).getTime();
@@ -199,12 +201,7 @@ function dibujarGantt(registros) {
                 const esFuturo = m.esPlan || start > hoyMillis;
                 const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
                 
-                let ohlTxt = m.proxOHL;
-                if (ohlTxt && ohlTxt !== "S/D" && ohlTxt !== "Planificado") {
-                    ohlTxt = new Date(ohlTxt).toLocaleDateString();
-                }
-
-                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Manual'}\nPróximo OHL: ${ohlTxt}`;
+                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Manual'}\nPróximo OHL: ${m.proxOHL}`;
 
                 barrasHTML += `<div class="bar ${colorClass} ${m.muleto || ut.includes('TDR') ? 'tdr' : ''} ${esFuturo ? 'bar-futura' : ''}" 
                                     style="left:${left}px; width:${width}px;" title="${tooltip}">
