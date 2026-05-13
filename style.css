@@ -3,10 +3,9 @@
     --m100-blue: #1e40af; 
     --t60-teal: #0d9488; 
     --tdr-gray: #555555;
-    --plan-gray: #a1a1aa; /* Gris sobrio para futuro */
+    --plan-gray: #444444; 
 }
 
-/* Navegación */
 .page-view { display: none !important; }
 .page-view.active { display: flex !important; }
 #home-view.active { display: block !important; }
@@ -19,7 +18,7 @@
 
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Contenedor GANTT */
+/* Grilla Gantt */
 #timeline-viewport { 
     width: 1480px; 
     background: #0d0d0d; 
@@ -27,142 +26,70 @@
     min-height: 100%;
 }
 
-#timeline-scale {
-    display: flex;
-    flex-direction: row;
-}
+#timeline-scale { display: flex; flex-direction: row; }
 
 .year-block { 
-    width: 110px; 
-    flex-shrink: 0; 
-    padding: 14px 0; 
-    text-align: center; 
-    font-size: 11px; 
-    color: #555; 
-    border-left: 1px solid #222; 
-    font-weight: 900;
+    width: 110px; flex-shrink: 0; padding: 14px 0; text-align: center; 
+    font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900;
 }
 
-/* Filas */
-.timeline-row { 
-    display: flex; 
-    height: 52px; 
-    align-items: center; 
-    border-bottom: 1px solid #161616; 
-}
+.timeline-row { display: flex; height: 52px; align-items: center; border-bottom: 1px solid #161616; }
 
 .ut-label {
-    width: 160px; 
-    position: sticky; 
-    left: 0; 
-    background: #0d0d0d; 
-    z-index: 45;
-    padding-left: 20px; 
-    font-size: 14px; 
-    font-weight: 900; 
-    color: var(--ferro-orange);
-    border-right: 2px solid var(--ferro-orange); 
-    height: 100%; 
-    display: flex; 
-    align-items: center;
+    width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 45;
+    padding-left: 20px; font-size: 14px; font-weight: 900; color: var(--ferro-orange);
+    border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center;
     text-transform: uppercase;
 }
 
 .bar-box { 
-    position: relative; 
-    flex: 1; 
-    height: 100%; 
+    position: relative; flex: 1; height: 100%; 
     background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); 
     background-size: 110px 100%; 
 }
 
-/* BARRAS */
+/* Estilo de Barras */
 .bar {
-    position: absolute; 
-    height: 30px; 
-    top: 11px; 
-    border-radius: 2px; 
-    color: #fff; 
-    font-size: 13px; 
-    font-weight: 900;
-    display: flex; 
-    align-items: center; 
-    padding: 0 12px; 
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.7);
-    white-space: nowrap; 
-    overflow: hidden;
-    transition: transform 0.15s ease;
-    cursor: crosshair;
+    position: absolute; height: 30px; top: 11px; border-radius: 2px; color: #fff; 
+    font-size: 13px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; 
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.7); white-space: nowrap; overflow: hidden;
+    transition: transform 0.15s ease; cursor: crosshair;
 }
 
-.bar:hover { 
-    filter: brightness(1.2); 
-    transform: scaleY(1.15); 
-    z-index: 100; 
-}
+.bar:hover { filter: brightness(1.2); transform: scaleY(1.15); z-index: 100; }
 
-/* Colores Familia Real */
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-/* BARRAS FUTURAS (Sobrias) */
+/* Barras Planificadas (Futuro) */
 .bar-futura {
-    background: #444 !important; /* Gris oscuro sobrio */
-    color: #aaa !important; /* Texto gris claro */
-    border: 1px dashed #666 !important;
-    box-shadow: none !important;
+    background: var(--plan-gray) !important; color: #aaa !important;
+    border: 1px dashed #666 !important; box-shadow: none !important;
 }
 
-.bar.tdr {
-    background: linear-gradient(90deg, #333, #555) !important;
-    color: #bbb !important;
-    border: 1px solid #444;
+/* Barras de Reparación USA (Rayado) */
+.bar-repa {
+    background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important;
+    border: 1px solid #555 !important; color: #888 !important; opacity: 0.9;
 }
 
-/* Línea HOY */
-#today-line {
-    position: absolute; top: 0; bottom: 0; width: 2px;
-    background-color: #ff4444; z-index: 40; pointer-events: none;
-}
-.today-label {
-    position: absolute; top: 52px; left: 5px; background: #ff4444;
-    color: white; font-size: 8px; font-weight: 900; padding: 2px 5px;
-}
+.bar.tdr { background: linear-gradient(90deg, #333, #555) !important; color: #bbb !important; border: 1px solid #444; }
+
+/* Línea de HOY */
+#today-line { position: absolute; top: 0; bottom: 0; width: 2px; background-color: #ff4444; z-index: 40; pointer-events: none; }
+.today-label { position: absolute; top: 52px; left: 5px; background: #ff4444; color: white; font-size: 8px; font-weight: 900; padding: 2px 5px; }
 
 /* Tooltip Custom */
 #custom-tooltip {
-    position: fixed;
-    display: none;
-    background: rgba(10, 10, 10, 0.98);
-    border: 1px solid transparent; 
-    color: white;
-    padding: 14px;
-    border-radius: 4px;
-    font-size: 11px;
-    z-index: 9999;
-    pointer-events: none;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.8);
-    backdrop-filter: blur(8px);
-    transform: scale(0.95);
-    opacity: 0;
-    transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+    position: fixed; display: none; background: rgba(10, 10, 10, 0.98); border: 1px solid transparent; 
+    color: white; padding: 14px; border-radius: 4px; font-size: 11px; z-index: 9999;
+    pointer-events: none; box-shadow: 0 15px 35px rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    transform: scale(0.95); opacity: 0; transition: transform 0.1s ease-out, opacity 0.1s ease-out;
 }
 
-#custom-tooltip.visible {
-    display: block;
-    transform: scale(1);
-    opacity: 1;
-}
-
-.tooltip-header { 
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
-    padding-bottom: 6px; 
-    margin-bottom: 8px; 
-    font-weight: 900; 
-    text-transform: uppercase; 
-    font-size: 13px; 
-}
+#custom-tooltip.visible { display: block; transform: scale(1); opacity: 1; }
+.tooltip-header { border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 6px; margin-bottom: 8px; font-weight: 900; text-transform: uppercase; font-size: 13px; }
 .tooltip-row { display: flex; justify-content: space-between; gap: 30px; margin-bottom: 4px; }
 .tooltip-val { font-weight: 700; color: #fff; }
 .tooltip-label { color: #888; }
