@@ -16,7 +16,6 @@
 
 .leaflet-container { background: #0a0a0a !important; }
 
-/* ESCALA COMPACTA 2020-2031 */
 #timeline-viewport { 
     width: 1480px; 
     background: #0d0d0d; 
@@ -39,17 +38,15 @@
 
 .timeline-row { display: flex; height: 50px; align-items: center; border-bottom: 1px solid #161616; }
 
-/* UT LABELS - MÁS GRANDES Y VISIBLES */
 .ut-label {
     width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 45;
     padding-left: 20px; 
-    font-size: 14px; /* Aumentado de 10px */
+    font-size: 14px; /* FUENTE GRANDE */
     font-weight: 900; 
     color: var(--ferro-orange);
     border-right: 2px solid var(--ferro-orange); 
     height: 100%; display: flex; align-items: center;
     text-transform: uppercase;
-    letter-spacing: 1px;
 }
 
 .bar-box { 
