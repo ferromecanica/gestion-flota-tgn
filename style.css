@@ -5,7 +5,7 @@
     --tdr-gray: #555555;
 }
 
-/* Navegación y Pantallas */
+/* Navegación */
 .page-view { display: none !important; }
 .page-view.active { display: flex !important; }
 #home-view.active { display: block !important; }
@@ -18,7 +18,7 @@
 
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Contenedor del Cronograma (2020-2031) */
+/* Contenedor GANTT (2020-2031) */
 #timeline-viewport { 
     width: 1480px; 
     background: #0d0d0d; 
@@ -65,7 +65,6 @@
     display: flex; 
     align-items: center;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .bar-box { 
@@ -76,7 +75,7 @@
     background-size: 110px 100%; 
 }
 
-/* Barras de Turbinas */
+/* BARRAS DE TURBINAS */
 .bar {
     position: absolute; 
     height: 30px; 
@@ -91,7 +90,7 @@
     box-shadow: 2px 2px 8px rgba(0,0,0,0.7);
     white-space: nowrap; 
     overflow: hidden;
-    transition: transform 0.2s ease, filter 0.2s ease;
+    transition: transform 0.15s ease;
     cursor: crosshair;
 }
 
@@ -101,7 +100,7 @@
     z-index: 100; 
 }
 
-/* Colores por Familia */
+/* COLORES POR FAMILIA (Normalizados) */
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; color: #fff !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; color: #fff !important; }
@@ -118,7 +117,7 @@
     filter: saturate(0.5);
 }
 
-/* Línea de Tiempo Actual */
+/* Línea de HOY */
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
     background-color: #ff4444; z-index: 40; pointer-events: none;
@@ -128,7 +127,7 @@
     color: white; font-size: 8px; font-weight: 900; padding: 2px 5px;
 }
 
-/* Tooltip Custom Industrial */
+/* Tooltip Custom */
 #custom-tooltip {
     position: fixed;
     display: none;
@@ -160,7 +159,6 @@
     font-weight: 900; 
     text-transform: uppercase; 
     font-size: 13px; 
-    letter-spacing: 1px;
 }
 .tooltip-row { display: flex; justify-content: space-between; gap: 30px; margin-bottom: 4px; }
 .tooltip-val { font-weight: 700; color: #fff; }
