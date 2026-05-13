@@ -24,7 +24,6 @@ const totalRange = maxDate - minDate;
 const viewportWidth = 1320; 
 
 function init() {
-    // Inicializar mapa de forma segura
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
@@ -50,7 +49,6 @@ async function cargarDatosMaestros() {
         const dataPlan = await resPlan.json();
         const dataTurb = await resTurb.json();
 
-        // 1. Mapear Turbinas por ID de registro para obtener S/N real, Horas y OHL
         diccionarioTurbinas = {};
         (dataTurb.records || []).forEach(t => {
             const f = t.fields;
@@ -62,13 +60,10 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 2. Procesar Movimientos
         let registros = (dataMov.records || []).map(r => {
             const f = r.fields;
-            // Manejar si S/N es un vínculo (array) o texto
-            const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
-            const info = diccionarioTurbinas[snRef] || {};
-
+            const snLinkID = (Array.isArray(f["S/N"]) && f["S/N"].length > 0) ? f["S/N"][0] : null;
+            const info = diccionarioTurbinas[snLinkID] || {};
             return {
                 ut: String(f["UT"] || ""),
                 sn: info.snReal || String(f["S/N"] || "S/N"),
@@ -81,41 +76,41 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 3. Procesar Planificación
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
-            registros.forEach(r => {
-                if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"];
-            });
-
+            registros.forEach(r => { if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"]; });
             registros.push({
-                ut: utEvento,
-                sn: f["S/N IN"] || "POR DEFINIR",
-                inicio: f["FECHA MOVIMIENTO"],
-                fin: null,
-                familia: f["FAMILIA"],
-                muleto: f["DESTINO OUT"] === "TDR (Muleto)",
-                proxOHL: "Planificado",
-                horas: "-",
-                esPlan: true
+                ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: f["FECHA MOVIMIENTO"],
+                fin: null, familia: f["FAMILIA"], muleto: f["DESTINO OUT"] === "TDR (Muleto)",
+                proxOHL: "Planificado", horas: "-", esPlan: true
             });
         });
 
         todosLosRegistros = registros;
         statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ITEMS`;
-        
         const hoy = new Date().getTime();
-        const activos = todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy);
-        dibujarMapa(activos);
-
-    } catch (e) { 
-        statusEl.innerText = "ERROR CARGA"; 
-        console.error("Error en carga:", e);
-    }
+        dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy));
+    } catch (e) { statusEl.innerText = "ERROR CARGA"; }
 }
 
-// ... Las funciones dibujarMapa y showView se mantienen igual que antes ...
+function formatMMYYYY(dateString) {
+    if (!dateString || dateString === "S/D" || dateString === "Planificado") return dateString;
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString;
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+function showView(viewId, familia = null) {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
+    });
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
+    document.getElementById(viewId).classList.add('active');
+    if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 100);
+    else dibujarGantt(todosLosRegistros.filter(r => String(r.familia).toUpperCase() === familia.toUpperCase()));
+}
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
@@ -126,38 +121,24 @@ function dibujarMapa(registros) {
         const coords = coordenadasTGN[code];
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
-            const shift = conteo[code] * 0.045; 
-            conteo[code]++;
+            const shift = conteo[code] * 0.045; conteo[code]++;
             const color = r.muleto ? "#555" : (r.familia === "M100" ? "#1e40af" : (r.familia === "T60" ? "#0d9488" : "#E48A06"));
-            L.circleMarker([coords[0] - shift, coords[1] + shift], {
-                radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9
-            }).addTo(markersGroup).bindPopup(`<b>${r.ut}</b><br>SN: ${r.sn}`);
+            L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(`<b>${r.ut}</b><br>SN: ${r.sn}`);
         }
     });
 }
 
-function showView(viewId, familia = null) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
-    });
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
-    document.querySelectorAll('.page-view').forEach(v => { if(v.id !== viewId) v.classList.add('hidden'); });
-    document.getElementById(viewId).classList.add('active');
-
-    if (viewId === 'home-view') {
-        setTimeout(() => map.invalidateSize(), 100);
-    } else {
-        document.getElementById('gantt-title').innerText = `PLAN OHL | ${familia}`;
-        const filtrados = todosLosRegistros.filter(r => String(r.familia).toUpperCase() === familia.toUpperCase());
-        dibujarGantt(filtrados);
-    }
-}
-
 function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
+    const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
     
+    // 1. Escala de años
+    const scale = document.getElementById('timeline-scale');
+    scale.innerHTML = ''; 
+    for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
+
+    // 2. Agrupar UTs
     const grupos = {};
     registros.forEach(r => {
         if (r.ut.includes("TDR") && !r.muleto) return;
@@ -165,18 +146,9 @@ function dibujarGantt(registros) {
         grupos[r.ut].push(r);
     });
 
-    const scale = document.getElementById('timeline-scale');
-    scale.innerHTML = ''; 
-    for (let y = 2020; y <= 2031; y++) {
-        scale.innerHTML += `<div class="year-block">${y}</div>`;
-    }
+    const uts = Object.keys(grupos).sort((a,b) => (a.includes("TDR") || grupos[a][0].muleto) - (b.includes("TDR") || grupos[b][0].muleto));
 
-    const uts = Object.keys(grupos).sort((a,b) => {
-        const aT = a.includes("TDR") || grupos[a][0].muleto;
-        const bT = b.includes("TDR") || grupos[b][0].muleto;
-        return aT - bT;
-    });
-
+    // 3. Dibujar Filas
     uts.forEach(ut => {
         const row = document.createElement('div');
         row.className = 'timeline-row';
@@ -191,39 +163,40 @@ function dibujarGantt(registros) {
 
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
+            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" ? new Date(m.proxOHL).getTime() : maxDate);
             
-            // Recorte: Si no hay fecha fin, usar Próximo OHL
-            let end;
-            if (m.fin) {
-                end = new Date(m.fin).getTime();
-            } else if (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado") {
-                end = new Date(m.proxOHL).getTime();
-            } else {
-                end = maxDate;
-            }
-
             start = Math.max(start, minDate);
             end = Math.min(end, maxDate);
 
             if (end > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((end - start) / totalRange) * viewportWidth;
-                const esFuturo = m.esPlan || start > new Date().getTime();
                 const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
 
                 const bar = document.createElement('div');
-                bar.className = `bar ${colorClass} ${m.muleto ? 'muleto' : ''} ${esFuturo ? 'bar-futura' : ''}`;
+                bar.className = `bar ${colorClass} ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''}`;
                 bar.style.left = `${left}px`;
                 bar.style.width = `${width}px`;
                 bar.innerText = m.sn;
-                
-                // Pop-up temporal mientras creamos el nuevo
-                bar.title = `SN: ${m.sn} | Hrs: ${m.horas} | OHL: ${m.proxOHL}`;
+
+                bar.onmouseenter = (e) => {
+                    tooltip.innerHTML = `
+                        <div class="tooltip-header">S/N: ${m.sn}</div>
+                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
+                    `;
+                    tooltip.classList.add('visible');
+                };
+                bar.onmousemove = (e) => {
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                };
+                bar.onmouseleave = () => tooltip.classList.remove('visible');
                 
                 barBox.appendChild(bar);
             }
         });
-
         row.appendChild(barBox);
         container.appendChild(row);
     });
