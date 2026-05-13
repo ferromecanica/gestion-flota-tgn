@@ -27,8 +27,7 @@ function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
-    const hoy = new Date().getTime();
-    const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
+    const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
     cargarDatosMaestros();
@@ -65,31 +64,49 @@ async function cargarDatosMaestros() {
             return {
                 ut: String(f["UT"] || ""),
                 sn: info.snReal || String(f["S/N"] || "S/N"),
-                inicio: f["FECHA INICIO"],
-                fin: f["FECHA FIN"],
+                inicio: f["FECHA INICIO"], fin: f["FECHA FIN"],
                 familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
                 muleto: info.esMuleto || false,
-                proxOHL: info.proxOHL || "S/D",
-                horas: info.horas || "0"
+                proxOHL: info.proxOHL || "S/D", horas: info.horas || "0"
             };
         });
 
+        // Inteligencia de Swaps en PLANIFICACION
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
-            const famPlan = String(f["FAMILIA"] || "").trim().toUpperCase();
-            registros.forEach(r => { if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"]; });
+            const fechaSwap = f["FECHA MOVIMIENTO"];
+            const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
+
+            registros.forEach(r => {
+                if (r.ut === utEvento && !r.fin) {
+                    r.fin = fechaSwap; // Cierre de la barra actual
+
+                    // Si se va a USA, creamos barra de 6 meses
+                    if (destinoOut === "OHL USA") {
+                        let fFinRepa = new Date(fechaSwap);
+                        fFinRepa.setMonth(fFinRepa.getMonth() + 6);
+                        registros.push({
+                            ut: "REPA USA", sn: r.sn, inicio: fechaSwap,
+                            fin: fFinRepa.toISOString(), familia: r.familia,
+                            muleto: false, horas: r.horas, esRepa: true
+                        });
+                    }
+                }
+            });
+
+            // Registro de la que ingresa
             registros.push({
-                ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: f["FECHA MOVIMIENTO"],
-                fin: null, familia: famPlan, muleto: f["DESTINO OUT"] === "TDR (Muleto)",
+                ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: fechaSwap,
+                fin: null, familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
+                muleto: String(f["ORIGEN IN"] || "").trim().toUpperCase() === "TDR",
                 proxOHL: "Planificado", horas: "-", esPlan: true
             });
         });
 
         todosLosRegistros = registros;
         statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
-        const hoy = new Date().getTime();
-        dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy));
+        dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= new Date().getTime()));
     } catch (e) { statusEl.innerText = "ERROR CARGA"; }
 }
 
@@ -108,14 +125,14 @@ function showView(viewId, familia = null) {
     document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active', 'hidden'));
     document.getElementById(viewId).classList.add('active');
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 100);
-    else dibujarGantt(todosLosRegistros.filter(r => r.familia === String(familia).toUpperCase()));
+    else dibujarGantt(todosLosRegistros.filter(r => r.familia === String(familia).toUpperCase() || r.esRepa));
 }
 
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
-        if (r.ut.includes("TDR") && !r.muleto) return;
+        if ((r.ut.includes("TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
         const code = r.ut.substring(0, 3);
         const coords = coordenadasTGN[code];
         if (coords) {
@@ -124,7 +141,7 @@ function dibujarMapa(registros) {
             let color = "#E48A06";
             if (r.familia === "M100") color = "#1e40af";
             if (r.familia === "T60") color = "#0d9488";
-            if (r.muleto) color = "#555";
+            if (r.muleto || r.esRepa) color = "#555";
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 8, fillColor: color, color: "#fff", weight: 1, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(`<b>${r.ut}</b><br>SN: ${r.sn}`);
         }
     });
@@ -145,7 +162,7 @@ function dibujarGantt(registros) {
         grupos[r.ut].push(r);
     });
 
-    const uts = Object.keys(grupos).sort((a,b) => (a.includes("TDR") || grupos[a][0].muleto) - (b.includes("TDR") || grupos[b][0].muleto));
+    const uts = Object.keys(grupos).sort((a,b) => (a === "REPA USA" || a.includes("TDR")) - (b === "REPA USA" || b.includes("TDR")));
 
     uts.forEach(ut => {
         const row = document.createElement('div');
@@ -171,22 +188,19 @@ function dibujarGantt(registros) {
                 let colorClass = "bar-t70";
                 if (m.familia === "M100") { colorClass = "bar-m100"; colorHex = "#1e40af"; }
                 if (m.familia === "T60") { colorClass = "bar-t60"; colorHex = "#0d9488"; }
-                if (m.muleto) colorHex = "#555";
-                
-                // SOBRESCRIBIR COLOR SI ES PLAN
-                if (m.esPlan) { colorHex = "#888"; } 
+                if (m.esPlan) colorHex = "#888";
+                if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
-                bar.className = `bar ${colorClass} ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''}`;
-                bar.style.left = `${left}px`;
-                bar.style.width = `${width}px`;
-                bar.innerText = m.sn;
+                bar.className = `bar ${colorClass} ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
+                bar.style.left = `${left}px`; bar.style.width = `${width}px`; bar.innerText = m.sn;
 
                 bar.onmouseenter = (e) => {
                     tooltip.style.borderColor = colorHex;
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex}; border-bottom-color: ${colorHex}44;">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Horas Actuales:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esRepa ? 'En Reparación USA' : 'Operativa'}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
                     `;
