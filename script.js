@@ -1,10 +1,8 @@
 const AIRTABLE_TOKEN = 'patd4owksa2IM6d7C.bc0f7568f4f686a694b2c70cce2aa8952fced03db48ae8598ac7cd08c3a5810a'; 
 const BASE_ID = 'app3Zwi0sqRk5cTgw';
 
-// Nombres de tus tablas en MAYÚSCULAS
 const T_MOV = 'MOVIMIENTOS';
 const T_PLAN = 'PLANIFICACION';
-const T_TURB = 'TURBINAS';
 
 const coordenadasTGN = {
     "LMR": [-35.1070, -66.8301], "PUE": [-37.5477, -67.7343], "COC": [-36.3663, -67.0747],
@@ -18,16 +16,18 @@ const coordenadasTGN = {
 let todosLosRegistros = [];
 let map, markersGroup;
 
-const minDate = new Date("2022-01-01").getTime();
+// NUEVA ESCALA: 2020 A 2031 (12 años)
+const minDate = new Date("2020-01-01").getTime();
 const maxDate = new Date("2032-01-01").getTime();
 const totalRange = maxDate - minDate;
-const viewportWidth = 1600; 
+const viewportWidth = 1320; // 110px por año * 12 años
 
 function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
+    // Posicionamiento de línea HOY basado en 2020
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
@@ -38,10 +38,7 @@ function init() {
 
 async function cargarDatosMaestros() {
     const statusEl = document.getElementById('status');
-    statusEl.innerText = "SINCRO EN CURSO...";
-    
     try {
-        // Cargamos las 3 tablas en paralelo
         const [resMov, resPlan] = await Promise.all([
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
@@ -50,51 +47,46 @@ async function cargarDatosMaestros() {
         const dataMov = await resMov.json();
         const dataPlan = await resPlan.json();
 
-        // 1. Procesamos MOVIMIENTOS (El presente)
+        // USAMOS TURBINA TEXTO para evitar los rec... IDs
         let registros = (dataMov.records || []).map(r => ({
-            ut: r.fields["UT"],
-            sn: r.fields["S/N"],
+            ut: String(r.fields["UT"] || ""),
+            sn: String(r.fields["Turbina Texto"] || r.fields["S/N"] || "S/N"),
             inicio: r.fields["FECHA INICIO"],
-            fin: r.fields["FECHA FIN"], // Normalmente vacío para activos
+            fin: r.fields["FECHA FIN"],
             familia: r.fields["FAMILIA"],
             muleto: r.fields["Es Muleto"] === "1 checked out of 1" || r.fields["Es Muleto"] === true,
-            tipo: 'REAL'
+            proxOHL: r.fields["Prox OHL"] || "S/D"
         }));
 
-        // 2. Procesamos PLANIFICACION (Los Swaps Futuros)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
-            const fechaSwap = f["FECHA MOVIMIENTO"];
-            const utEvento = f["UT"];
-
-            // Cortar la barra que está hoy en esa UT
+            const utEvento = String(f["UT"] || "");
+            
+            // Cortar la actual
             registros.forEach(r => {
-                if (r.ut === utEvento && !r.fin) {
-                    r.fin = fechaSwap; // Cerramos la barra actual en la fecha del swap
-                }
+                if (r.ut === utEvento && !r.fin) r.fin = f["FECHA MOVIMIENTO"];
             });
 
-            // Creamos la nueva barra que entra
+            // Nueva barra planificada
             registros.push({
                 ut: utEvento,
                 sn: f["S/N IN"] || "POR DEFINIR",
-                inicio: fechaSwap,
+                inicio: f["FECHA MOVIMIENTO"],
                 fin: null,
                 familia: f["FAMILIA"],
-                muleto: f["DESTINO OUT"] === "TDR (Muleto)", // Si el destino era TDR, esta entra como muleto
-                tipo: 'PLAN'
+                muleto: f["DESTINO OUT"] === "TDR (Muleto)",
+                esPlan: true
             });
         });
 
         todosLosRegistros = registros;
-        statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
+        statusEl.innerText = `SISTEMA OK | ${todosLosRegistros.length} ITEMS`;
         
-        // Mapa: solo mostramos lo que está activo HOY
         const hoy = new Date().getTime();
-        const activosMapa = todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy);
-        dibujarMapa(activosMapa);
+        const activos = todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= hoy);
+        dibujarMapa(activos);
 
-    } catch (e) { statusEl.innerText = "ERROR API"; console.error(e); }
+    } catch (e) { statusEl.innerText = "ERROR API"; }
 }
 
 function showView(viewId, familia = null) {
@@ -119,7 +111,7 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
-        const code = String(r.ut || "").substring(0, 3);
+        const code = r.ut.substring(0, 3);
         const coords = coordenadasTGN[code];
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
@@ -138,24 +130,21 @@ function dibujarGantt(registros) {
     container.innerHTML = '';
     const hoyMillis = new Date().getTime();
 
-    // Agrupar por UT
     const grupos = {};
     registros.forEach(r => {
         if (!grupos[r.ut]) grupos[r.ut] = [];
         grupos[r.ut].push(r);
     });
 
-    // Ordenar (Muletos/TDR abajo)
     const uts = Object.keys(grupos).sort((a,b) => {
         const aT = a.includes("TDR") || grupos[a][0].muleto;
         const bT = b.includes("TDR") || grupos[b][0].muleto;
         return aT - bT;
     });
 
-    // Escala de años
     const scale = document.getElementById('timeline-scale');
     scale.innerHTML = ''; 
-    for (let y = 2022; y <= 2031; y++) {
+    for (let y = 2020; y <= 2031; y++) {
         scale.innerHTML += `<div class="year-block">${y}</div>`;
     }
 
@@ -173,11 +162,12 @@ function dibujarGantt(registros) {
             if (end > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((end - start) / totalRange) * viewportWidth;
-                const esFuturo = start > hoyMillis;
+                const esFuturo = m.esPlan || start > hoyMillis;
                 const colorClass = m.familia === "M100" ? "bar-m100" : (m.familia === "T60" ? "bar-t60" : "bar-t70");
+                const tooltip = `SN: ${m.sn}\nInicio: ${m.inicio || 'Inicio'}\nProx OHL: ${m.proxOHL}`;
 
                 barrasHTML += `<div class="bar ${colorClass} ${m.muleto || ut.includes('TDR') ? 'tdr' : ''} ${esFuturo ? 'bar-futura' : ''}" 
-                                    style="left:${left}px; width:${width}px;" title="SN: ${m.sn}">
+                                    style="left:${left}px; width:${width}px;" title="${tooltip}">
                                     ${m.sn}
                                </div>`;
             }
