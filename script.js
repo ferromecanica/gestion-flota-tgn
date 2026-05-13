@@ -71,31 +71,38 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // Inteligencia de Swaps en PLANIFICACION
+        // 3. Procesar PLANIFICACION (Búsqueda de máquina anterior para corte exacto)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
             const fechaSwap = f["FECHA MOVIMIENTO"];
+            const fechaSwapMillis = new Date(fechaSwap).getTime();
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
 
-            registros.forEach(r => {
-                if (r.ut === utEvento && !r.fin) {
-                    r.fin = fechaSwap; // Cierre de la barra actual
-
-                    // Si se va a USA, creamos barra de 6 meses
-                    if (destinoOut === "OHL USA") {
-                        let fFinRepa = new Date(fechaSwap);
-                        fFinRepa.setMonth(fFinRepa.getMonth() + 6);
-                        registros.push({
-                            ut: "REPA USA", sn: r.sn, inicio: fechaSwap,
-                            fin: fFinRepa.toISOString(), familia: r.familia,
-                            muleto: false, horas: r.horas, esRepa: true
-                        });
-                    }
-                }
+            // Buscar la máquina instalada justo antes del swap
+            let maquinaAnterior = registros.find(r => {
+                if (r.ut !== utEvento) return false;
+                const fInicio = new Date(r.inicio).getTime();
+                const fFin = r.fin ? new Date(r.fin).getTime() : 
+                            (r.proxOHL && r.proxOHL !== "S/D" && r.proxOHL !== "Planificado" ? new Date(r.proxOHL).getTime() : maxDate);
+                return fInicio <= fechaSwapMillis && fFin >= fechaSwapMillis;
             });
 
-            // Registro de la que ingresa
+            if (maquinaAnterior) {
+                maquinaAnterior.fin = fechaSwap; // Corte exacto
+
+                if (destinoOut === "OHL USA") {
+                    let fFinRepa = new Date(fechaSwap);
+                    fFinRepa.setMonth(fFinRepa.getMonth() + 6);
+                    registros.push({
+                        ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
+                        fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia,
+                        muleto: false, horas: maquinaAnterior.horas, esRepa: true
+                    });
+                }
+            }
+
+            // Nueva máquina planificada (Barra Azul Marino)
             registros.push({
                 ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: fechaSwap,
                 fin: null, familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
@@ -188,7 +195,7 @@ function dibujarGantt(registros) {
                 let colorClass = "bar-t70";
                 if (m.familia === "M100") { colorClass = "bar-m100"; colorHex = "#1e40af"; }
                 if (m.familia === "T60") { colorClass = "bar-t60"; colorHex = "#0d9488"; }
-                if (m.esPlan) colorHex = "#888";
+                if (m.esPlan) colorHex = "#1e1b4b"; 
                 if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
@@ -199,7 +206,7 @@ function dibujarGantt(registros) {
                     tooltip.style.borderColor = colorHex;
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex}; border-bottom-color: ${colorHex}44;">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esRepa ? 'En Reparación USA' : 'Operativa'}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esRepa ? 'Reparación USA' : (m.esPlan ? 'Planificado' : 'Operativa')}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
