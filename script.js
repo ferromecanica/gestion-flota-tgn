@@ -27,12 +27,10 @@ function init() {
     map = L.map('map').setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
     markersGroup = L.layerGroup().addTo(map);
-    
     const hoy = new Date().getTime();
     const hoyPos = ((hoy - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
-
     cargarDatosMaestros();
 }
 
@@ -136,7 +134,6 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
-    
     const scale = document.getElementById('timeline-scale');
     scale.innerHTML = ''; 
     for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
@@ -157,14 +154,12 @@ function dibujarGantt(registros) {
         label.className = 'ut-label';
         label.innerText = ut;
         row.appendChild(label);
-
         const barBox = document.createElement('div');
         barBox.className = 'bar-box';
 
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
             let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" ? new Date(m.proxOHL).getTime() : maxDate);
-            
             start = Math.max(start, minDate);
             end = Math.min(end, maxDate);
 
@@ -177,6 +172,9 @@ function dibujarGantt(registros) {
                 if (m.familia === "M100") { colorClass = "bar-m100"; colorHex = "#1e40af"; }
                 if (m.familia === "T60") { colorClass = "bar-t60"; colorHex = "#0d9488"; }
                 if (m.muleto) colorHex = "#555";
+                
+                // SOBRESCRIBIR COLOR SI ES PLAN
+                if (m.esPlan) { colorHex = "#888"; } 
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${colorClass} ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''}`;
@@ -199,7 +197,6 @@ function dibujarGantt(registros) {
                     tooltip.style.top = (e.clientY + 15) + 'px';
                 };
                 bar.onmouseleave = () => tooltip.classList.remove('visible');
-                
                 barBox.appendChild(bar);
             }
         });
@@ -207,5 +204,4 @@ function dibujarGantt(registros) {
         container.appendChild(row);
     });
 }
-
 window.onload = init;
