@@ -3,6 +3,7 @@
     --m100-blue: #1e40af; 
     --t60-teal: #0d9488; 
     --tdr-gray: #555555;
+    --plan-gray: #a1a1aa; /* Gris sobrio para futuro */
 }
 
 /* Navegación */
@@ -18,7 +19,7 @@
 
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Contenedor GANTT (2020-2031) */
+/* Contenedor GANTT */
 #timeline-viewport { 
     width: 1480px; 
     background: #0d0d0d; 
@@ -42,7 +43,7 @@
     font-weight: 900;
 }
 
-/* Filas de Plantas */
+/* Filas */
 .timeline-row { 
     display: flex; 
     height: 52px; 
@@ -75,7 +76,7 @@
     background-size: 110px 100%; 
 }
 
-/* BARRAS DE TURBINAS */
+/* BARRAS */
 .bar {
     position: absolute; 
     height: 30px; 
@@ -100,10 +101,18 @@
     z-index: 100; 
 }
 
-/* COLORES POR FAMILIA (Normalizados) */
-.bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; color: #fff !important; }
+/* Colores Familia Real */
+.bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
-.bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; color: #fff !important; }
+.bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
+
+/* BARRAS FUTURAS (Sobrias) */
+.bar-futura {
+    background: #444 !important; /* Gris oscuro sobrio */
+    color: #aaa !important; /* Texto gris claro */
+    border: 1px dashed #666 !important;
+    box-shadow: none !important;
+}
 
 .bar.tdr {
     background: linear-gradient(90deg, #333, #555) !important;
@@ -111,13 +120,7 @@
     border: 1px solid #444;
 }
 
-.bar-futura {
-    opacity: 0.6; 
-    border: 1px dashed rgba(255,255,255,0.4); 
-    filter: saturate(0.5);
-}
-
-/* Línea de HOY */
+/* Línea HOY */
 #today-line {
     position: absolute; top: 0; bottom: 0; width: 2px;
     background-color: #ff4444; z-index: 40; pointer-events: none;
