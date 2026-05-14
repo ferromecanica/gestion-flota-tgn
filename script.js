@@ -73,7 +73,7 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 3. Procesar PLANIFICACION
+        // 3. Procesar PLANIFICACION (Lógica de Trazabilidad Restaurada)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -83,13 +83,13 @@ async function cargarDatosMaestros() {
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
             const fechaSwapMillis = new Date(fechaSwap).getTime();
 
-            // Cortar la estancia en el TDR de origen
+            // Cortar estancia en TDR si la máquina entra a una UT
             if (origenIn === "TDR") {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
-            // Identificar qué sale
+            // Buscar la máquina que estaba instalada antes del swap
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
@@ -99,28 +99,23 @@ async function cargarDatosMaestros() {
                 fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                 const fechaFinRepaISO = fFinRepa.toISOString();
 
-                // Barra Reparación
+                // Barra de Reparación en USA
                 registros.push({
                     ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
                     fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
                 });
 
-                // RETORNO AL TDR ESPECÍFICO DE LA PLANTA
+                // Retorno al TDR de la planta de origen
                 const plantaCode = utEvento.substring(0, 3);
                 registros.push({
-                    ut: `${plantaCode}-TDR`, 
-                    sn: maquinaAnterior.sn, 
-                    inicio: fechaFinRepaISO,
-                    fin: null, 
-                    familia: maquinaAnterior.familia, 
-                    muleto: true,
-                    horas: "0 (REPARADA)", 
-                    proxOHL: "Disponible"
+                    ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, 
+                    inicio: fechaFinRepaISO, fin: null, familia: maquinaAnterior.familia, 
+                    muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible"
                 });
             }
 
-            // Nueva máquina planificada
+            // Nueva máquina planificada (Barra Azul)
             registros.push({
                 ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null,
                 familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
@@ -155,7 +150,7 @@ function dibujarMapa(registros) {
                     <span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span>
                 </div>
                 <div class="map-label-body">
-                    <div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div>
+                    <div class="map-label-row"><span class="map-label-tag">Horas Actuales:</span><span class="map-label-val">${r.horas}</span></div>
                     <div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div>
                 </div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
@@ -207,7 +202,6 @@ function dibujarGantt(registros) {
                 if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
-                // Se agrega la clase bar-futura siempre que sea un plan
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if(m.familia === "M100") bar.classList.add('bar-m100');
                 if(m.familia.includes("T70")) bar.classList.add('bar-t70');
