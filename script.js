@@ -62,16 +62,18 @@ async function cargarDatosMaestros() {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
             const fechaSwap = f["FECHA MOVIMIENTO"];
+            if(!fechaSwap) return;
+
             const fechaMillis = new Date(fechaSwap).getTime();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
 
-            // CORTAR MÁQUINA QUE SALE (Indispensable para evitar solapamiento en LCA-TC03)
+            // CORTAR LA MÁQUINA QUE SALE DE LA UT OPERATIVA
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
 
             if (maquinaAnterior) {
-                maquinaAnterior.fin = fechaSwap; // Cerramos la estancia en la unidad
+                maquinaAnterior.fin = fechaSwap; // Cierra la anterior
                 if (destinoOut === "OHL USA") {
                     let fFinRepa = new Date(fechaSwap); fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                     registros.push({ ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap, fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia, muleto: false, horas: maquinaAnterior.horas, esRepa: true });
@@ -118,7 +120,6 @@ function dibujarGantt(registros) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((end - start) / totalRange) * viewportWidth;
                 
-                // MULTI-LANE SOLO PARA TDR
                 let laneIndex = 0;
                 if (ut.includes("-TDR")) {
                     laneIndex = lanes.findIndex(laneEnd => laneEnd <= start);
@@ -128,15 +129,15 @@ function dibujarGantt(registros) {
                 let colorHex = "#E48A06";
                 if (m.familia === "M100") colorHex = "#1e40af";
                 if (m.familia === "T60") colorHex = "#0d9488";
-                if (m.esPlan) colorHex = "#22c55e"; // Color del borde en el tooltip
+                if (m.esPlan) colorHex = "#22c55e";
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if (width < 65) bar.classList.add('bar-short');
                 
-                if(m.familia === "M100") bar.classList.add('bar-m100');
-                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
-                if(m.familia === "T60") bar.classList.add('bar-t60');
+                if((m.familia || "").includes("M100")) bar.classList.add('bar-m100');
+                if((m.familia || "").includes("T70")) bar.classList.add('bar-t70');
+                if((m.familia || "").includes("T60")) bar.classList.add('bar-t60');
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; 
                 bar.style.top = `${11 + (laneIndex * 35)}px`;
@@ -147,7 +148,6 @@ function dibujarGantt(registros) {
                     tooltip.style.borderColor = colorHex;
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex};">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esPlan ? 'PLANIFICADO' : (m.esRepa ? 'REPARACIÓN' : 'OPERATIVA')}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
@@ -173,7 +173,7 @@ function showView(viewId, familia = null) {
     document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
-    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa)); }
+    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? (r.familia || "").includes(familia) : true) || r.esRepa)); }
 }
 
 function dibujarMapa(registros) {
@@ -186,7 +186,7 @@ function dibujarMapa(registros) {
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
-            let color = "#E48A06"; if (r.familia === "M100") color = "#1e40af"; if (r.familia === "T60") color = "#0d9488";
+            let color = "#E48A06"; if ((r.familia || "").includes("M100")) color = "#1e40af"; if ((r.familia || "").includes("T60")) color = "#0d9488";
             const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
