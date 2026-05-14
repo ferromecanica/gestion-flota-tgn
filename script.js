@@ -24,11 +24,16 @@ const totalRange = maxDate - minDate;
 const viewportWidth = 1320; 
 
 function init() {
+    // Inicializar Mapa
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica © 2026' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { 
+        attribution: 'Ferro Mecánica © 2026' 
+    }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
 
-    const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
+    // Posicionar línea de HOY
+    const hoyMillis = new Date().getTime();
+    const hoyPos = ((hoyMillis - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
 
@@ -48,6 +53,7 @@ async function cargarDatosMaestros() {
         const dataPlan = await resPlan.json();
         const dataTurb = await resTurb.json();
 
+        // 1. Diccionario de Turbinas
         diccionarioTurbinas = {};
         (dataTurb.records || []).forEach(t => {
             const f = t.fields;
@@ -59,6 +65,7 @@ async function cargarDatosMaestros() {
             };
         });
 
+        // 2. Procesar Movimientos Reales
         let registros = (dataMov.records || []).map(r => {
             const f = r.fields;
             const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
@@ -73,7 +80,7 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 3. Procesar PLANIFICACION
+        // 3. Procesar Planificación (Trazabilidad)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -83,13 +90,13 @@ async function cargarDatosMaestros() {
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
             const fechaSwapMillis = new Date(fechaSwap).getTime();
 
-            // Cortar la estancia en el TDR de origen
+            // Salida del TDR
             if (origenIn === "TDR") {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
-            // Identificar qué sale
+            // Identificar qué sale para REPA USA
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
@@ -99,24 +106,19 @@ async function cargarDatosMaestros() {
                 fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                 const fechaFinRepaISO = fFinRepa.toISOString();
 
-                // Barra Reparación
+                // Barra REPA USA
                 registros.push({
                     ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
                     fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
                 });
 
-                // RETORNO AL TDR ESPECÍFICO DE LA PLANTA
+                // Retorno al TDR local
                 const plantaCode = utEvento.substring(0, 3);
                 registros.push({
-                    ut: `${plantaCode}-TDR`, 
-                    sn: maquinaAnterior.sn, 
-                    inicio: fechaFinRepaISO,
-                    fin: null, 
-                    familia: maquinaAnterior.familia, 
-                    muleto: true,
-                    horas: "0 (REPARADA)", 
-                    proxOHL: "Disponible"
+                    ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, 
+                    inicio: fechaFinRepaISO, fin: null, familia: maquinaAnterior.familia, 
+                    muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible"
                 });
             }
 
@@ -130,8 +132,14 @@ async function cargarDatosMaestros() {
 
         todosLosRegistros = registros;
         statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
+        
+        // Dibujar Mapa inicial
         dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= new Date().getTime()));
-    } catch (e) { statusEl.innerText = "ERROR CARGA"; }
+
+    } catch (e) { 
+        console.error(e);
+        statusEl.innerText = "ERROR CARGA"; 
+    }
 }
 
 function dibujarMapa(registros) {
@@ -158,7 +166,9 @@ function dibujarMapa(registros) {
                     <div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div>
                     <div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div>
                 </div>`;
-            L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
+            L.circleMarker([coords[0] - shift, coords[1] + shift], { 
+                radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 
+            }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
     });
 }
@@ -167,9 +177,13 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
+    
+    // Escala de años
     const scale = document.getElementById('timeline-scale');
     scale.innerHTML = ''; 
-    for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
+    for (let y = 2020; y <= 2031; y++) {
+        scale.innerHTML += `<div class="year-block">${y}</div>`;
+    }
 
     const grupos = {};
     registros.forEach(r => {
@@ -186,6 +200,7 @@ function dibujarGantt(registros) {
         const label = document.createElement('div');
         label.className = 'ut-label'; label.innerText = ut;
         row.appendChild(label);
+        
         const barBox = document.createElement('div');
         barBox.className = 'bar-box';
 
@@ -207,7 +222,6 @@ function dibujarGantt(registros) {
                 if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
-                // Se agrega la clase bar-futura siempre que sea un plan
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if(m.familia === "M100") bar.classList.add('bar-m100');
                 if(m.familia.includes("T70")) bar.classList.add('bar-t70');
@@ -215,13 +229,16 @@ function dibujarGantt(registros) {
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; bar.innerText = m.sn;
 
+                // --- TOOLTIP INDUSTRIAL CON RECUADRO DE COLOR ---
                 bar.onmouseenter = (e) => {
                     tooltip.style.display = 'block';
-                    tooltip.style.borderLeft = `4px solid ${colorHex}`;
+                    tooltip.style.borderColor = colorHex; // Borde de color de la familia
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex};">S/N: ${m.sn}</div>
+                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esRepa ? 'REPARACIÓN USA' : (m.esPlan ? 'PLANIFICADO' : 'OPERATIVA')}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Planta:</span> <span class="tooltip-val">${m.ut}</span></div>
                     `;
                 };
                 bar.onmousemove = (e) => {
@@ -244,14 +261,31 @@ function formatMMYYYY(dateString) {
 }
 
 function showView(viewId, familia = null) {
+    // Actualizar botones del sidebar
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
     });
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-    if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
-    else dibujarGantt(todosLosRegistros.filter(r => r.familia === String(familia).toUpperCase() || r.esRepa));
+
+    // Cambiar vista
+    document.querySelectorAll('.page-view').forEach(v => {
+        v.classList.add('hidden');
+        v.classList.remove('active');
+    });
+    
+    const target = document.getElementById(viewId);
+    target.classList.remove('hidden');
+    target.classList.add('active');
+
+    // Actualizar título en el Gantt si corresponde
+    if (viewId === 'gantt-view' && familia) {
+        document.getElementById('gantt-title').innerText = `PLAN OHL ${familia}`;
+        dibujarGantt(todosLosRegistros.filter(r => r.familia.includes(familia) || r.esRepa));
+    }
+
+    if (viewId === 'home-view') {
+        setTimeout(() => map.invalidateSize(), 200);
+    }
 }
 
 window.onload = init;
