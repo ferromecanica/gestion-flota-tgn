@@ -73,6 +73,7 @@ async function cargarDatosMaestros() {
             };
         });
 
+        // 3. Procesar PLANIFICACION
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -80,31 +81,46 @@ async function cargarDatosMaestros() {
             const snEntra = f["S/N IN"] || "POR DEFINIR";
             const origenIn = String(f["ORIGEN IN"] || "").trim().toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
+            const fechaSwapMillis = new Date(fechaSwap).getTime();
 
+            // Cortar la estancia en el TDR de origen
             if (origenIn === "TDR") {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
+            // Identificar qué sale
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
-            let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= new Date(fechaSwap).getTime());
+            let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
 
             if (maquinaAnterior && destinoOut === "OHL USA") {
                 let fFinRepa = new Date(fechaSwap);
                 fFinRepa.setMonth(fFinRepa.getMonth() + 6);
+                const fechaFinRepaISO = fFinRepa.toISOString();
+
+                // Barra Reparación
                 registros.push({
                     ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
-                    fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia,
+                    fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
                 });
+
+                // RETORNO AL TDR ESPECÍFICO DE LA PLANTA
+                const plantaCode = utEvento.substring(0, 3);
                 registros.push({
-                    ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, 
-                    inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia,
-                    muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible"
+                    ut: `${plantaCode}-TDR`, 
+                    sn: maquinaAnterior.sn, 
+                    inicio: fechaFinRepaISO,
+                    fin: null, 
+                    familia: maquinaAnterior.familia, 
+                    muleto: true,
+                    horas: "0 (REPARADA)", 
+                    proxOHL: "Disponible"
                 });
             }
 
+            // Nueva máquina planificada
             registros.push({
                 ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null,
                 familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
@@ -132,9 +148,16 @@ function dibujarMapa(registros) {
             if (r.familia === "M100") color = "#1e40af";
             if (r.familia === "T60") color = "#0d9488";
             if (r.muleto || r.esRepa) color = "#555";
+
             const popupContent = `
-                <div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div>
-                <div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
+                <div class="map-label-header" style="color:${color};">
+                    <span>${r.ut}</span>
+                    <span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span>
+                </div>
+                <div class="map-label-body">
+                    <div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div>
+                    <div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div>
+                </div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
     });
@@ -170,6 +193,9 @@ function dibujarGantt(registros) {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
             let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" && m.proxOHL !== "Disponible" ? new Date(m.proxOHL).getTime() : maxDate);
             
+            start = Math.max(start, minDate);
+            end = Math.min(end, maxDate);
+
             if (end > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((end - start) / totalRange) * viewportWidth;
@@ -178,8 +204,10 @@ function dibujarGantt(registros) {
                 if (m.familia === "M100") colorHex = "#1e40af";
                 if (m.familia === "T60") colorHex = "#0d9488";
                 if (m.esPlan) colorHex = "#1e1b4b"; 
+                if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
+                // Se agrega la clase bar-futura siempre que sea un plan
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if(m.familia === "M100") bar.classList.add('bar-m100');
                 if(m.familia.includes("T70")) bar.classList.add('bar-t70');
