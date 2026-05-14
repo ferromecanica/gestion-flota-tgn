@@ -6,65 +6,69 @@
     --dark-bg: #0a0a0a;
 }
 
-body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; display: flex; }
+body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+.page-view { display: none !important; width: 100vw; height: 100vh; flex-direction: column; }
+.page-view.active { display: flex !important; }
 
-/* Menú Lateral */
-#sidebar { width: 220px; height: 100vh; background: #111; display: flex; flex-direction: column; padding: 20px; border-right: 1px solid #222; }
-.logo { font-weight: 900; color: var(--ferro-orange); margin-bottom: 30px; letter-spacing: 2px; font-size: 18px; }
-.nav-btn { background: transparent; border: 1px solid #333; color: #888; padding: 12px; margin-bottom: 10px; cursor: pointer; text-align: left; font-weight: 700; transition: 0.3s; font-size: 13px; }
-.nav-btn.active { border-color: var(--ferro-orange); color: var(--ferro-orange); background: rgba(228, 138, 6, 0.05); }
+/* --- MAPA --- */
+#map { flex: 1; width: 100%; background: #000; }
+.leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Botón Nuevo Movimiento */
-#btn-nuevo-mov { background: var(--ferro-orange); color: #000; border: none; padding: 15px; font-weight: 900; cursor: pointer; margin-top: auto; border-radius: 4px; font-size: 12px; }
-#status { font-size: 10px; color: #555; margin-top: 10px; text-align: center; }
+.leaflet-popup-content-wrapper {
+    background: rgba(10, 10, 10, 0.98) !important;
+    color: white !important;
+    border-radius: 4px !important;
+    padding: 0 !important;
+    border: 1px solid var(--ferro-orange);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8) !important;
+    backdrop-filter: blur(8px);
+}
+.leaflet-popup-content { margin: 0 !important; width: 220px !important; }
+.leaflet-popup-tip { background: var(--ferro-orange) !important; }
 
-/* Vistas */
-.page-view { flex: 1; height: 100vh; display: none; overflow: hidden; }
-.page-view.active { display: block; }
-#map { width: 100%; height: 100%; }
+.map-label-header {
+    padding: 10px 15px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    font-weight: 900;
+    text-transform: uppercase;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+}
+.map-label-body { padding: 12px 15px; font-size: 12px; }
+.map-label-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.map-label-tag { color: #888; }
+.map-label-val { font-weight: 700; color: #fff; }
 
 /* --- GANTT --- */
-#gantt-container { height: 100%; overflow-x: auto; background: #0d0d0d; position: relative; }
-#timeline-scale { display: flex; }
-.year-block { width: 110px; flex-shrink: 0; padding: 15px 0; text-align: center; font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900; }
-.timeline-row { display: flex; height: 52px; border-bottom: 1px solid #161616; align-items: center; }
-.ut-label { width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 10; padding-left: 20px; font-size: 14px; font-weight: 900; color: var(--ferro-orange); border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center; text-transform: uppercase; }
+#timeline-viewport { width: 1480px; background: #0d0d0d; position: relative; min-height: 100%; }
+#timeline-scale { display: flex; flex-direction: row; }
+.year-block { width: 110px; flex-shrink: 0; padding: 14px 0; text-align: center; font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900; }
+.timeline-row { display: flex; height: 52px; align-items: center; border-bottom: 1px solid #161616; }
+.ut-label { width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 45; padding-left: 20px; font-size: 14px; font-weight: 900; color: var(--ferro-orange); border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center; text-transform: uppercase; }
 .bar-box { position: relative; flex: 1; height: 100%; background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); background-size: 110px 100%; }
 
-/* BARRAS */
-.bar { position: absolute; height: 30px; top: 11px; border-radius: 2px; color: #fff; font-size: 13px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); white-space: nowrap; transition: 0.1s; cursor: crosshair; }
+.bar { position: absolute; height: 30px; top: 11px; border-radius: 2px; color: #fff; font-size: 13px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.7); white-space: nowrap; overflow: hidden; transition: transform 0.1s ease; cursor: crosshair; }
+.bar:hover { filter: brightness(1.2); transform: scaleY(1.1); z-index: 100; }
+
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-/* PRIORIDAD: PLANIFICADO (AZUL MARINO) */
-.bar.bar-futura { background: var(--plan-navy) !important; color: #94a3b8 !important; border: 1px dashed #334155 !important; box-shadow: none !important; }
-.bar.tdr { background: linear-gradient(90deg, #333, #555) !important; color: #bbb !important; border: 1px solid #444; }
-.bar-repa { background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important; border: 1px solid #555 !important; color: #888 !important; }
-
-#today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4444; z-index: 5; pointer-events: none; }
-
-/* --- TOOLTIP RECUPERADO (DISEÑO FERRO) --- */
-#custom-tooltip {
-    position: fixed; display: none; background: rgba(10, 10, 10, 0.98); 
-    color: white; padding: 14px; border-radius: 4px; font-size: 11px; z-index: 9999; 
-    pointer-events: none; box-shadow: 0 15px 35px rgba(0,0,0,0.8); 
-    backdrop-filter: blur(8px); border: 1px solid transparent;
+/* La barra futura ahora es más específica para que gane siempre */
+.bar.bar-futura { 
+    background: var(--plan-navy) !important; 
+    color: #94a3b8 !important; 
+    border: 1px dashed #334155 !important; 
+    box-shadow: none !important; 
 }
-.tooltip-header { border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 6px; margin-bottom: 8px; font-weight: 900; text-transform: uppercase; font-size: 13px; }
-.tooltip-row { display: flex; justify-content: space-between; gap: 30px; margin-bottom: 4px; }
-.tooltip-val { font-weight: 700; color: #fff; }
-.tooltip-label { color: #888; }
 
-/* MAPA POPUPS */
-.leaflet-popup-content-wrapper { background: rgba(10, 10, 10, 0.98) !important; color: white !important; border-radius: 4px !important; padding: 0 !important; border: 1px solid var(--ferro-orange); }
-.map-label-header { padding: 10px 15px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: 900; text-transform: uppercase; font-size: 14px; display: flex; justify-content: space-between; }
-.map-label-body { padding: 12px 15px; font-size: 12px; }
-.map-label-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.bar-repa { background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important; border: 1px solid #555 !important; color: #888 !important; opacity: 0.9; }
+.bar.tdr { background: linear-gradient(90deg, #333, #555) !important; color: #bbb !important; border: 1px solid #444; }
 
-/* MODAL */
-.modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
-.modal-content { background: #161616; margin: 5% auto; padding: 30px; border: 1px solid var(--ferro-orange); width: 400px; border-radius: 8px; }
-.form-group { margin-bottom: 20px; }
-.form-group label { display: block; font-size: 11px; color: #888; margin-bottom: 8px; font-weight: 900; }
-.form-group input, .form-group select { width: 100%; padding: 12px; background: #000; border: 1px solid #333; color: #fff; border-radius: 4px; }
+#today-line { position: absolute; top: 0; bottom: 0; width: 2px; background-color: #ff4444; z-index: 40; pointer-events: none; }
+
+#custom-tooltip {
+    position: fixed; display: none; background: rgba(10, 10, 10, 0.98); color: white; padding: 14px; border-radius: 4px; font-size: 11px; z-index: 9999; pointer-events: none; box-shadow: 0 15px 35px rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+}
