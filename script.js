@@ -39,9 +39,9 @@ async function cargarDatosMaestros() {
     const statusEl = document.getElementById('status');
     try {
         const [resMov, resPlan, resTurb] = await Promise.all([
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } })
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
         ]);
 
         const dataMov = await resMov.json();
@@ -73,7 +73,7 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 3. Procesar PLANIFICACION (Con lógica de entrada/salida mejorada)
+        // 3. Procesar PLANIFICACION
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
@@ -83,13 +83,13 @@ async function cargarDatosMaestros() {
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
             const fechaSwapMillis = new Date(fechaSwap).getTime();
 
-            // CORRECCIÓN 1: Si viene del TDR, hacerlo desaparecer de esa fila ese día
+            // Salida del TDR
             if (origenIn === "TDR") {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
-            // CORRECCIÓN 2: Buscar máquina que sale para mandarla a reparar y luego devolverla
+            // Identificar qué sale
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
@@ -99,32 +99,26 @@ async function cargarDatosMaestros() {
                 fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                 const fechaFinRepaISO = fFinRepa.toISOString();
 
-                // Barra de Reparación
+                // Barra Reparación
                 registros.push({
                     ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
                     fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
                 });
 
-                // RETORNO AL TDR: Después de la repa, vuelve como muleto disponible
+                // Retorno al TDR post-reparación
                 registros.push({
-                    ut: "TDR", // Se agrupará en la fila de muletos
-                    sn: maquinaAnterior.sn,
-                    inicio: fechaFinRepaISO,
-                    fin: null,
-                    familia: maquinaAnterior.familia,
-                    muleto: true,
-                    horas: "0 (REPARADA)",
-                    proxOHL: "Disponible"
+                    ut: "TDR", sn: maquinaAnterior.sn, inicio: fechaFinRepaISO,
+                    fin: null, familia: maquinaAnterior.familia, muleto: true,
+                    horas: "0 (REPARADA)", proxOHL: "Disponible"
                 });
             }
 
             // Nueva máquina planificada
             registros.push({
-                ut: utEvento, sn: snEntra, inicio: fechaSwap,
-                fin: null, familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
-                muleto: (origenIn === "TDR"),
-                proxOHL: "Planificado", horas: "-", esPlan: true
+                ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null,
+                familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
+                muleto: (origenIn === "TDR"), proxOHL: "Planificado", horas: "-", esPlan: true
             });
         });
 
@@ -155,8 +149,7 @@ function dibujarMapa(registros) {
                     <span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span>
                 </div>
                 <div class="map-label-body">
-                    <div class="map-label-row"><span class="map-label-tag">Horas Actuales:</span><span class="map-label-val">${r.horas} hrs</span></div>
-                    <div class="map-label-row"><span class="map-label-tag">Familia:</span><span class="map-label-val">${r.familia}</span></div>
+                    <div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div>
                     <div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div>
                 </div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
@@ -192,7 +185,7 @@ function dibujarGantt(registros) {
 
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" ? new Date(m.proxOHL).getTime() : maxDate);
+            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" && m.proxOHL !== "Disponible" ? new Date(m.proxOHL).getTime() : maxDate);
             
             start = Math.max(start, minDate);
             end = Math.min(end, maxDate);
@@ -220,7 +213,7 @@ function dibujarGantt(registros) {
                     tooltip.style.borderLeft = `4px solid ${colorHex}`;
                     tooltip.innerHTML = `
                         <div class="tooltip-header" style="color:${colorHex};">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas} hrs</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas}</span></div>
                         <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
                     `;
                 };
