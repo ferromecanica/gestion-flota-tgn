@@ -6,7 +6,6 @@
     --dark-bg: #0a0a0a;
 }
 
-/* --- ESTILOS BASE --- */
 body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
 .page-view { display: none !important; width: 100vw; height: 100vh; flex-direction: column; }
 .page-view.active { display: flex !important; }
@@ -15,15 +14,15 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe 
 #map { flex: 1; width: 100%; background: #000; }
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* --- ETIQUETAS DEL MAPA (POPUP CUSTOM) --- */
+/* Popups del Mapa Estilo Ferro */
 .leaflet-popup-content-wrapper {
-    background: rgba(10, 10, 10, 0.95) !important;
+    background: rgba(10, 10, 10, 0.98) !important;
     color: white !important;
     border-radius: 4px !important;
     padding: 0 !important;
     border: 1px solid var(--ferro-orange);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
-    backdrop-filter: blur(5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8) !important;
+    backdrop-filter: blur(8px);
 }
 .leaflet-popup-content { margin: 0 !important; width: 220px !important; }
 .leaflet-popup-tip { background: var(--ferro-orange) !important; }
@@ -40,11 +39,10 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe 
 }
 .map-label-body { padding: 12px 15px; font-size: 12px; }
 .map-label-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-.map-label-row:last-child { margin-bottom: 0; }
-.map-label-tag { color: #888; font-weight: 400; }
+.map-label-tag { color: #888; }
 .map-label-val { font-weight: 700; color: #fff; }
 
-/* --- TIMELINE / GANTT --- */
+/* --- GANTT --- */
 #timeline-viewport { width: 1480px; background: #0d0d0d; position: relative; min-height: 100%; }
 #timeline-scale { display: flex; flex-direction: row; }
 .year-block { width: 110px; flex-shrink: 0; padding: 14px 0; text-align: center; font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900; }
