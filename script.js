@@ -39,9 +39,9 @@ async function cargarDatosMaestros() {
     const statusEl = document.getElementById('status');
     try {
         const [resMov, resPlan, resTurb] = await Promise.all([
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
-            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_MOV}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } }),
+            fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTOKEN}` } })
         ]);
 
         const dataMov = await resMov.json();
@@ -73,15 +73,23 @@ async function cargarDatosMaestros() {
             };
         });
 
-        // 3. Procesar PLANIFICACION (Búsqueda por antecedente inmediato)
+        // 3. Procesar PLANIFICACION (Con lógica de entrada/salida mejorada)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
             const fechaSwap = f["FECHA MOVIMIENTO"];
-            const fechaSwapMillis = new Date(fechaSwap).getTime();
+            const snEntra = f["S/N IN"] || "POR DEFINIR";
+            const origenIn = String(f["ORIGEN IN"] || "").trim().toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
+            const fechaSwapMillis = new Date(fechaSwap).getTime();
 
-            // Encontrar la máquina que estaba instalada antes del swap en esa UT
+            // CORRECCIÓN 1: Si viene del TDR, hacerlo desaparecer de esa fila ese día
+            if (origenIn === "TDR") {
+                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("TDR"));
+                if (rTDR) rTDR.fin = fechaSwap;
+            }
+
+            // CORRECCIÓN 2: Buscar máquina que sale para mandarla a reparar y luego devolverla
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
@@ -89,17 +97,33 @@ async function cargarDatosMaestros() {
             if (maquinaAnterior && destinoOut === "OHL USA") {
                 let fFinRepa = new Date(fechaSwap);
                 fFinRepa.setMonth(fFinRepa.getMonth() + 6);
+                const fechaFinRepaISO = fFinRepa.toISOString();
+
+                // Barra de Reparación
                 registros.push({
                     ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
-                    fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia,
+                    fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
+                });
+
+                // RETORNO AL TDR: Después de la repa, vuelve como muleto disponible
+                registros.push({
+                    ut: "TDR", // Se agrupará en la fila de muletos
+                    sn: maquinaAnterior.sn,
+                    inicio: fechaFinRepaISO,
+                    fin: null,
+                    familia: maquinaAnterior.familia,
+                    muleto: true,
+                    horas: "0 (REPARADA)",
+                    proxOHL: "Disponible"
                 });
             }
 
+            // Nueva máquina planificada
             registros.push({
-                ut: utEvento, sn: f["S/N IN"] || "POR DEFINIR", inicio: fechaSwap,
+                ut: utEvento, sn: snEntra, inicio: fechaSwap,
                 fin: null, familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
-                muleto: String(f["ORIGEN IN"] || "").trim().toUpperCase() === "TDR",
+                muleto: (origenIn === "TDR"),
                 proxOHL: "Planificado", horas: "-", esPlan: true
             });
         });
@@ -168,7 +192,6 @@ function dibujarGantt(registros) {
 
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            // Visualmente la barra muere en el Prox OHL si no hay fecha de fin real
             let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" ? new Date(m.proxOHL).getTime() : maxDate);
             
             start = Math.max(start, minDate);
@@ -187,7 +210,7 @@ function dibujarGantt(registros) {
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if(m.familia === "M100") bar.classList.add('bar-m100');
-                if(m.familia === "T70" || m.familia === "T70 PLUS") bar.classList.add('bar-t70');
+                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
                 if(m.familia === "T60") bar.classList.add('bar-t60');
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; bar.innerText = m.sn;
@@ -215,7 +238,7 @@ function dibujarGantt(registros) {
 }
 
 function formatMMYYYY(dateString) {
-    if (!dateString || dateString === "S/D" || dateString === "Planificado") return dateString;
+    if (!dateString || dateString === "S/D" || dateString === "Planificado" || dateString === "Disponible") return dateString;
     const d = new Date(dateString);
     return isNaN(d.getTime()) ? dateString : `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 }
