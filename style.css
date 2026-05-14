@@ -51,10 +51,19 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe 
 
 .bar { position: absolute; height: 30px; top: 11px; border-radius: 2px; color: #fff; font-size: 13px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.7); white-space: nowrap; overflow: hidden; transition: transform 0.1s ease; cursor: crosshair; }
 .bar:hover { filter: brightness(1.2); transform: scaleY(1.1); z-index: 100; }
+
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
-.bar-futura { background: var(--plan-navy) !important; color: #94a3b8 !important; border: 1px dashed #334155 !important; box-shadow: none !important; }
+
+/* La barra futura ahora es más específica para que gane siempre */
+.bar.bar-futura { 
+    background: var(--plan-navy) !important; 
+    color: #94a3b8 !important; 
+    border: 1px dashed #334155 !important; 
+    box-shadow: none !important; 
+}
+
 .bar-repa { background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important; border: 1px solid #555 !important; color: #888 !important; opacity: 0.9; }
 .bar.tdr { background: linear-gradient(90deg, #333, #555) !important; color: #bbb !important; border: 1px solid #444; }
 
