@@ -25,7 +25,7 @@ const viewportWidth = 1320;
 
 function init() {
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica © 2026' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica' }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
@@ -41,6 +41,7 @@ async function cargarDatosMaestros() {
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
         ]);
+
         const dataMov = await resMov.json();
         const dataPlan = await resPlan.json();
         const dataTurb = await resTurb.json();
@@ -67,18 +68,18 @@ async function cargarDatosMaestros() {
             const fechaMillis = new Date(fechaSwap).getTime();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
 
-            // CORTAR LA MÁQUINA QUE SALE DE LA UT OPERATIVA
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
 
             if (maquinaAnterior) {
-                maquinaAnterior.fin = fechaSwap; // Cierra la anterior
-                if (destinoOut === "OHL USA") {
+                // Seteamos el fin lógico del activo, pero visualmente morirá en el proxOHL
+                maquinaAnterior.fin = fechaSwap; 
+                if (destinoOut.includes("OHL USA")) {
                     let fFinRepa = new Date(fechaSwap); fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                     registros.push({ ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap, fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia, muleto: false, horas: maquinaAnterior.horas, esRepa: true });
                     registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
-                } else if (destinoOut === "TDR") {
+                } else if (destinoOut.includes("TDR")) {
                     registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
                 }
             }
@@ -95,6 +96,7 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
+    
     const scale = document.getElementById('timeline-scale'); scale.innerHTML = ''; 
     for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
 
@@ -110,34 +112,53 @@ function dibujarGantt(registros) {
         row.appendChild(label);
         const barBox = document.createElement('div'); barBox.className = 'bar-box';
 
+        // ORDENAMOS POR INICIO ANTES DE DIBUJAR LANES
+        grupos[ut].sort((a, b) => {
+            const startA = a.inicio ? new Date(a.inicio).getTime() : minDate;
+            const startB = b.inicio ? new Date(b.inicio).getTime() : minDate;
+            return startA - startB;
+        });
+
         let lanes = [];
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && !["S/D","Planificado","Disponible"].includes(m.proxOHL) ? new Date(m.proxOHL).getTime() : maxDate);
-            start = Math.max(start, minDate); end = Math.min(end, maxDate);
+            
+            // LÓGICA DE FIN VISUAL: Muere en proxOHL a menos que el fin real sea anterior
+            const proxOHLMillis = (m.proxOHL && !["S/D", "Planificado", "Disponible"].includes(m.proxOHL)) ? new Date(m.proxOHL).getTime() : null;
+            let visualEnd;
+            
+            if (m.fin) {
+                const finRealMillis = new Date(m.fin).getTime();
+                visualEnd = (proxOHLMillis && finRealMillis > proxOHLMillis) ? proxOHLMillis : finRealMillis;
+            } else {
+                visualEnd = proxOHLMillis || maxDate;
+            }
+            
+            start = Math.max(start, minDate);
+            visualEnd = Math.min(visualEnd, maxDate);
 
-            if (end > start) {
+            if (visualEnd > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
-                const width = ((end - start) / totalRange) * viewportWidth;
+                const width = ((visualEnd - start) / totalRange) * viewportWidth;
                 
                 let laneIndex = 0;
                 if (ut.includes("-TDR")) {
                     laneIndex = lanes.findIndex(laneEnd => laneEnd <= start);
-                    if (laneIndex === -1) { laneIndex = lanes.length; lanes.push(end); } else { lanes[laneIndex] = end; }
+                    if (laneIndex === -1) { laneIndex = lanes.length; lanes.push(visualEnd); } else { lanes[laneIndex] = visualEnd; }
                 }
 
                 let colorHex = "#E48A06";
                 if (m.familia === "M100") colorHex = "#1e40af";
                 if (m.familia === "T60") colorHex = "#0d9488";
-                if (m.esPlan) colorHex = "#22c55e";
+                if (m.esPlan) colorHex = "#22c55e"; // Color verde en tooltip
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if (width < 65) bar.classList.add('bar-short');
                 
-                if((m.familia || "").includes("M100")) bar.classList.add('bar-m100');
-                if((m.familia || "").includes("T70")) bar.classList.add('bar-t70');
-                if((m.familia || "").includes("T60")) bar.classList.add('bar-t60');
+                if(m.familia.includes("M100")) bar.classList.add('bar-m100');
+                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
+                if(m.familia.includes("T60")) bar.classList.add('bar-t60');
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; 
                 bar.style.top = `${11 + (laneIndex * 35)}px`;
@@ -173,7 +194,7 @@ function showView(viewId, familia = null) {
     document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
-    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? (r.familia || "").includes(familia) : true) || r.esRepa)); }
+    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa)); }
 }
 
 function dibujarMapa(registros) {
@@ -186,7 +207,7 @@ function dibujarMapa(registros) {
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
-            let color = "#E48A06"; if ((r.familia || "").includes("M100")) color = "#1e40af"; if ((r.familia || "").includes("T60")) color = "#0d9488";
+            let color = "#E48A06"; if (r.familia.includes("M100")) color = "#1e40af"; if (r.familia.includes("T60")) color = "#0d9488";
             const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
