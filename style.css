@@ -14,7 +14,6 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Segoe 
 #map { flex: 1; width: 100%; background: #000; }
 .leaflet-container { background: #0a0a0a !important; outline: 0; }
 
-/* Popups del Mapa Estilo Ferro */
 .leaflet-popup-content-wrapper {
     background: rgba(10, 10, 10, 0.98) !important;
     color: white !important;
