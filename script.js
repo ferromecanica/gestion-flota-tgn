@@ -27,11 +27,9 @@ function init() {
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica © 2026' }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
-
     const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
     if(line) line.style.left = hoyPos + 'px';
-
     cargarDatosMaestros();
 }
 
@@ -43,7 +41,6 @@ async function cargarDatosMaestros() {
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_PLAN}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } }),
             fetch(`https://api.airtable.com/v0/${BASE_ID}/${T_TURB}?cacheBuster=${Date.now()}`, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } })
         ]);
-
         const dataMov = await resMov.json();
         const dataPlan = await resPlan.json();
         const dataTurb = await resTurb.json();
@@ -51,89 +48,132 @@ async function cargarDatosMaestros() {
         diccionarioTurbinas = {};
         (dataTurb.records || []).forEach(t => {
             const f = t.fields;
-            diccionarioTurbinas[t.id] = {
-                snReal: f["S/N"] || "S/N",
-                proxOHL: f["Próximo OHL"] || null,
-                horas: f["Hrs Actual"] || "0",
-                esMuleto: f["Muleto TGN?"] === true || f["Muleto TGN?"] === "checked"
-            };
+            diccionarioTurbinas[t.id] = { snReal: f["S/N"] || "S/N", proxOHL: f["Próximo OHL"] || null, horas: f["Hrs Actual"] || "0", esMuleto: f["Muleto TGN?"] === true };
         });
 
         let registros = (dataMov.records || []).map(r => {
             const f = r.fields;
             const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
             const info = diccionarioTurbinas[snRef] || {};
-            return {
-                ut: String(f["UT"] || ""),
-                sn: info.snReal || String(f["S/N"] || "S/N"),
-                inicio: f["FECHA INICIO"], fin: f["FECHA FIN"],
-                familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
-                muleto: info.esMuleto || false,
-                proxOHL: info.proxOHL || "S/D", horas: info.horas || "0"
-            };
+            return { ut: String(f["UT"] || ""), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
         });
 
-        // 3. Procesar PLANIFICACION (Con lógica de retorno a TDR local corregida)
         (dataPlan.records || []).forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
             const fechaSwap = f["FECHA MOVIMIENTO"];
-            const snEntra = f["S/N IN"] || "POR DEFINIR";
-            const origenIn = String(f["ORIGEN IN"] || "").trim().toUpperCase();
-            const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
-            const fechaSwapMillis = new Date(fechaSwap).getTime();
+            const fechaMillis = new Date(fechaSwap).getTime();
+            const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
 
-            // Cortar estancia en TDR
-            if (origenIn === "TDR") {
-                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
-                if (rTDR) rTDR.fin = fechaSwap;
-            }
-
-            // Identificar qué sale
+            // CORTAR MÁQUINA QUE SALE (Indispensable para evitar solapamiento en LCA-TC03)
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
-            let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaSwapMillis);
+            let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
 
             if (maquinaAnterior) {
+                maquinaAnterior.fin = fechaSwap; // Cerramos la estancia en la unidad
                 if (destinoOut === "OHL USA") {
-                    let fFinRepa = new Date(fechaSwap);
-                    fFinRepa.setMonth(fFinRepa.getMonth() + 6);
-                    const fechaFinRepaISO = fFinRepa.toISOString();
-
-                    registros.push({
-                        ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap,
-                        fin: fechaFinRepaISO, familia: maquinaAnterior.familia,
-                        muleto: false, horas: maquinaAnterior.horas, esRepa: true
-                    });
-
-                    const plantaCode = utEvento.substring(0, 3);
-                    registros.push({
-                        ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, 
-                        inicio: fechaFinRepaISO, fin: null, familia: maquinaAnterior.familia, 
-                        muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible"
-                    });
+                    let fFinRepa = new Date(fechaSwap); fFinRepa.setMonth(fFinRepa.getMonth() + 6);
+                    registros.push({ ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap, fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia, muleto: false, horas: maquinaAnterior.horas, esRepa: true });
+                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
                 } else if (destinoOut === "TDR") {
-                    // SI VA A TDR DIRECTO SIN REPARACIÓN
-                    const plantaCode = utEvento.substring(0, 3);
-                    registros.push({
-                        ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, 
-                        inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, 
-                        muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL
-                    });
+                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
                 }
             }
-
-            registros.push({
-                ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null,
-                familia: String(f["FAMILIA"] || "").trim().toUpperCase(),
-                muleto: (origenIn === "TDR"), proxOHL: "Planificado", horas: "-", esPlan: true
-            });
+            registros.push({ ut: utEvento, sn: f["S/N IN"] || "EXCHANGE", inicio: fechaSwap, fin: null, familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: String(f["ORIGEN IN"] || "").includes("TDR"), proxOHL: "Planificado", horas: "-", esPlan: true });
         });
 
         todosLosRegistros = registros;
         statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
         dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= new Date().getTime()));
     } catch (e) { statusEl.innerText = "ERROR CARGA"; }
+}
+
+function dibujarGantt(registros) {
+    const container = document.getElementById('gantt-rows');
+    const tooltip = document.getElementById('custom-tooltip');
+    container.innerHTML = '';
+    const scale = document.getElementById('timeline-scale'); scale.innerHTML = ''; 
+    for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
+
+    const grupos = {};
+    registros.forEach(r => {
+        if (r.ut.includes("-TDR") && !r.muleto) return;
+        if (!grupos[r.ut]) grupos[r.ut] = []; grupos[r.ut].push(r);
+    });
+
+    Object.keys(grupos).sort((a,b) => (a.includes("-TDR")) - (b.includes("-TDR"))).forEach(ut => {
+        const row = document.createElement('div'); row.className = 'timeline-row';
+        const label = document.createElement('div'); label.className = 'ut-label'; label.innerText = ut;
+        row.appendChild(label);
+        const barBox = document.createElement('div'); barBox.className = 'bar-box';
+
+        let lanes = [];
+        grupos[ut].forEach(m => {
+            let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
+            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && !["S/D","Planificado","Disponible"].includes(m.proxOHL) ? new Date(m.proxOHL).getTime() : maxDate);
+            start = Math.max(start, minDate); end = Math.min(end, maxDate);
+
+            if (end > start) {
+                const left = ((start - minDate) / totalRange) * viewportWidth;
+                const width = ((end - start) / totalRange) * viewportWidth;
+                
+                // MULTI-LANE SOLO PARA TDR
+                let laneIndex = 0;
+                if (ut.includes("-TDR")) {
+                    laneIndex = lanes.findIndex(laneEnd => laneEnd <= start);
+                    if (laneIndex === -1) { laneIndex = lanes.length; lanes.push(end); } else { lanes[laneIndex] = end; }
+                }
+
+                let colorHex = "#E48A06";
+                if (m.familia === "M100") colorHex = "#1e40af";
+                if (m.familia === "T60") colorHex = "#0d9488";
+                if (m.esPlan) colorHex = "#22c55e"; // Color del borde en el tooltip
+
+                const bar = document.createElement('div');
+                bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
+                if (width < 65) bar.classList.add('bar-short');
+                
+                if(m.familia === "M100") bar.classList.add('bar-m100');
+                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
+                if(m.familia === "T60") bar.classList.add('bar-t60');
+                
+                bar.style.left = `${left}px`; bar.style.width = `${width}px`; 
+                bar.style.top = `${11 + (laneIndex * 35)}px`;
+                bar.innerHTML = `<span>${m.sn}</span>`;
+
+                bar.onmouseenter = (e) => {
+                    tooltip.style.display = 'block';
+                    tooltip.style.borderColor = colorHex;
+                    tooltip.innerHTML = `
+                        <div class="tooltip-header" style="color:${colorHex};">S/N: ${m.sn}</div>
+                        <div class="tooltip-row"><span class="tooltip-label">Estado:</span> <span class="tooltip-val">${m.esPlan ? 'PLANIFICADO' : (m.esRepa ? 'REPARACIÓN' : 'OPERATIVA')}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
+                        <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${m.ut}</span></div>
+                    `;
+                };
+                bar.onmousemove = (e) => { tooltip.style.left = (e.clientX + 15) + 'px'; tooltip.style.top = (e.clientY + 15) + 'px'; };
+                bar.onmouseleave = () => tooltip.style.display = 'none';
+                barBox.appendChild(bar);
+            }
+        });
+        row.style.height = `${Math.max(52, 22 + (lanes.length * 35))}px`;
+        row.appendChild(barBox); container.appendChild(row);
+    });
+}
+
+function formatMMYYYY(dateString) {
+    if (!dateString || ["S/D","Planificado","Disponible"].includes(dateString)) return dateString;
+    const d = new Date(dateString); return isNaN(d.getTime()) ? dateString : `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+function showView(viewId, familia = null) {
+    document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('active'); if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active'); });
+    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
+    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa)); }
 }
 
 function dibujarMapa(registros) {
@@ -146,131 +186,10 @@ function dibujarMapa(registros) {
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
-            let color = "#E48A06";
-            if (r.familia === "M100") color = "#1e40af";
-            if (r.familia === "T60") color = "#0d9488";
-            if (r.muleto || r.esRepa) color = "#555";
-
-            const popupContent = `
-                <div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div>
-                <div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
+            let color = "#E48A06"; if (r.familia === "M100") color = "#1e40af"; if (r.familia === "T60") color = "#0d9488";
+            const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
     });
 }
-
-function dibujarGantt(registros) {
-    const container = document.getElementById('gantt-rows');
-    const tooltip = document.getElementById('custom-tooltip');
-    container.innerHTML = '';
-    const scale = document.getElementById('timeline-scale');
-    scale.innerHTML = ''; 
-    for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
-
-    const grupos = {};
-    registros.forEach(r => {
-        if (r.ut.includes("-TDR") && !r.muleto) return;
-        if (!grupos[r.ut]) grupos[r.ut] = [];
-        grupos[r.ut].push(r);
-    });
-
-    const uts = Object.keys(grupos).sort((a,b) => (a === "REPA USA" || a.includes("-TDR")) - (b === "REPA USA" || b.includes("-TDR")));
-
-    uts.forEach(ut => {
-        const row = document.createElement('div');
-        row.className = 'timeline-row';
-        const label = document.createElement('div');
-        label.className = 'ut-label'; label.innerText = ut;
-        row.appendChild(label);
-        const barBox = document.createElement('div');
-        barBox.className = 'bar-box';
-
-        // --- LÓGICA DE SLOTS (Multi-muleto) ---
-        let lanes = []; // Guardará el tiempo de fin de cada carril
-
-        grupos[ut].forEach(m => {
-            let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            let end = m.fin ? new Date(m.fin).getTime() : (m.proxOHL && m.proxOHL !== "S/D" && m.proxOHL !== "Planificado" && m.proxOHL !== "Disponible" ? new Date(m.proxOHL).getTime() : maxDate);
-            
-            start = Math.max(start, minDate);
-            end = Math.min(end, maxDate);
-
-            if (end > start) {
-                const left = ((start - minDate) / totalRange) * viewportWidth;
-                const width = ((end - start) / totalRange) * viewportWidth;
-                
-                // Buscar carril libre
-                let laneIndex = lanes.findIndex(laneEnd => laneEnd <= start);
-                if (laneIndex === -1) {
-                    laneIndex = lanes.length;
-                    lanes.push(end);
-                } else {
-                    lanes[laneIndex] = end;
-                }
-
-                let colorHex = "#E48A06";
-                if (m.familia === "M100") colorHex = "#1e40af";
-                if (m.familia === "T60") colorHex = "#0d9488";
-                if (m.esPlan) colorHex = "#1e1b4b"; 
-                if (m.esRepa || m.muleto) colorHex = "#555";
-
-                const bar = document.createElement('div');
-                bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
-                if (width < 65) bar.classList.add('bar-short'); // Clase para barras cortas
-                
-                if(m.familia === "M100") bar.classList.add('bar-m100');
-                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
-                if(m.familia === "T60") bar.classList.add('bar-t60');
-                
-                bar.style.left = `${left}px`; 
-                bar.style.width = `${width}px`; 
-                bar.style.top = `${11 + (laneIndex * 35)}px`; // Desplazamiento vertical por carril
-                bar.innerHTML = `<span>${m.sn}</span>`;
-
-                bar.onmouseenter = (e) => {
-                    tooltip.style.display = 'block';
-                    tooltip.style.borderColor = colorHex;
-                    tooltip.innerHTML = `
-                        <div class="tooltip-header" style="color:${colorHex};">S/N: ${m.sn}</div>
-                        <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${m.horas}</span></div>
-                        <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(m.proxOHL)}</span></div>
-                    `;
-                };
-                bar.onmousemove = (e) => {
-                    tooltip.style.left = (e.clientX + 15) + 'px';
-                    tooltip.style.top = (e.clientY + 15) + 'px';
-                };
-                bar.onmouseleave = () => tooltip.style.display = 'none';
-                barBox.appendChild(bar);
-            }
-        });
-
-        // Ajustar altura de la fila según la cantidad de carriles usados
-        row.style.height = `${Math.max(52, 22 + (lanes.length * 35))}px`;
-        row.appendChild(barBox);
-        container.appendChild(row);
-    });
-}
-
-function formatMMYYYY(dateString) {
-    if (!dateString || dateString === "S/D" || dateString === "Planificado" || dateString === "Disponible") return dateString;
-    const d = new Date(dateString);
-    return isNaN(d.getTime()) ? dateString : `${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
-}
-
-function showView(viewId, familia = null) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active');
-    });
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-    if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
-    else {
-        const title = familia ? `PLAN OHL ${familia}` : "PLAN OHL";
-        document.getElementById('gantt-title').innerText = title;
-        dibujarGantt(todosLosRegistros.filter(r => r.familia.includes(familia) || r.esRepa));
-    }
-}
-
 window.onload = init;
