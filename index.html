@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ferro Mecánica | Gestión de Activos</title>
+    <title>Ferro Mecánica | Control de Gestión</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,6 +15,9 @@
         <button class="nav-btn" onclick="showView('gantt-view', 'M100')">PLAN M100</button>
         <button class="nav-btn" onclick="showView('gantt-view', 'T70')">PLAN T70</button>
         <button class="nav-btn" onclick="showView('gantt-view', 'T60')">PLAN T60</button>
+        
+        <button id="btn-nuevo-mov" onclick="abrirModal()">+ NUEVO MOVIMIENTO</button>
+
         <div id="status">CONECTANDO...</div>
     </nav>
 
@@ -27,6 +30,45 @@
             <div id="timeline-scale"></div>
             <div id="gantt-rows"></div>
             <div id="today-line"></div>
+        </div>
+    </div>
+
+    <div id="modal-carga" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>REGISTRAR MOVIMIENTO</h3>
+                <span class="close" onclick="cerrarModal()">&times;</span>
+            </div>
+            <form id="form-movimiento">
+                <div class="form-group">
+                    <label>PLANTA (UT)</label>
+                    <input type="text" id="form-ut" placeholder="Ej: BEA-TC04" required>
+                </div>
+                <div class="form-group">
+                    <label>FECHA MOVIMIENTO</label>
+                    <input type="date" id="form-fecha" required>
+                </div>
+                <div class="form-group">
+                    <label>S/N QUE INGRESA</label>
+                    <input type="text" id="form-sn-in" placeholder="Ej: 0449B" required>
+                </div>
+                <div class="form-group">
+                    <label>ORIGEN IN</label>
+                    <select id="form-origen">
+                        <option value="TDR">TDR (Muleto)</option>
+                        <option value="OTRA UT">OTRA PLANTA</option>
+                        <option value="USA">USA</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DESTINO OUT</label>
+                    <select id="form-destino">
+                        <option value="OHL USA">OHL USA (Reparación)</option>
+                        <option value="TDR">TDR (Muleto)</option>
+                    </select>
+                </div>
+                <button type="submit" id="btn-guardar">GUARDAR EN SISTEMA</button>
+            </form>
         </div>
     </div>
 
