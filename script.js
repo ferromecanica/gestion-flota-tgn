@@ -83,9 +83,9 @@ async function cargarDatosMaestros() {
             const destinoOut = String(f["DESTINO OUT"] || "").trim().toUpperCase();
             const fechaSwapMillis = new Date(fechaSwap).getTime();
 
-            // Salida del TDR
+            // Cortar la estancia en el TDR de origen
             if (origenIn === "TDR") {
-                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("TDR"));
+                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
@@ -106,11 +106,17 @@ async function cargarDatosMaestros() {
                     muleto: false, horas: maquinaAnterior.horas, esRepa: true
                 });
 
-                // Retorno al TDR post-reparación
+                // RETORNO AL TDR ESPECÍFICO DE LA PLANTA
+                const plantaCode = utEvento.substring(0, 3);
                 registros.push({
-                    ut: "TDR", sn: maquinaAnterior.sn, inicio: fechaFinRepaISO,
-                    fin: null, familia: maquinaAnterior.familia, muleto: true,
-                    horas: "0 (REPARADA)", proxOHL: "Disponible"
+                    ut: `${plantaCode}-TDR`, 
+                    sn: maquinaAnterior.sn, 
+                    inicio: fechaFinRepaISO,
+                    fin: null, 
+                    familia: maquinaAnterior.familia, 
+                    muleto: true,
+                    horas: "0 (REPARADA)", 
+                    proxOHL: "Disponible"
                 });
             }
 
@@ -132,7 +138,7 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
-        if ((r.ut.includes("TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
+        if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
         const code = r.ut.substring(0, 3);
         const coords = coordenadasTGN[code];
         if (coords) {
@@ -167,12 +173,12 @@ function dibujarGantt(registros) {
 
     const grupos = {};
     registros.forEach(r => {
-        if (r.ut.includes("TDR") && !r.muleto) return;
+        if (r.ut.includes("-TDR") && !r.muleto) return;
         if (!grupos[r.ut]) grupos[r.ut] = [];
         grupos[r.ut].push(r);
     });
 
-    const uts = Object.keys(grupos).sort((a,b) => (a === "REPA USA" || a.includes("TDR")) - (b === "REPA USA" || b.includes("TDR")));
+    const uts = Object.keys(grupos).sort((a,b) => (a === "REPA USA" || a.includes("-TDR")) - (b === "REPA USA" || b.includes("-TDR")));
 
     uts.forEach(ut => {
         const row = document.createElement('div');
@@ -201,6 +207,7 @@ function dibujarGantt(registros) {
                 if (m.esRepa || m.muleto) colorHex = "#555";
 
                 const bar = document.createElement('div');
+                // Se agrega la clase bar-futura siempre que sea un plan
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if(m.familia === "M100") bar.classList.add('bar-m100');
                 if(m.familia.includes("T70")) bar.classList.add('bar-t70');
