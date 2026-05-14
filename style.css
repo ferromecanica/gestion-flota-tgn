@@ -2,30 +2,34 @@
     --ferro-orange: #E48A06;
     --m100-blue: #1e40af; 
     --t60-teal: #0d9488; 
-    --plan-green: #22c55e;
+    --plan-green: #22c55e; /* Verde fuerte solicitado */
     --dark-bg: #0a0a0a;
 }
+
+.font-audiowide { font-family: 'Audiowide', cursive; }
 
 body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
 .page-view { display: none; width: 100vw; height: 100vh; flex-direction: column; }
 .page-view.active { display: flex !important; }
 
 /* --- MAPA --- */
-#map { flex: 1; width: 100%; }
-.leaflet-container { background: #0a0a0a !important; }
-.leaflet-popup-content-wrapper { background: rgba(10, 10, 10, 0.98) !important; color: white !important; border: 1px solid var(--ferro-orange); }
+.leaflet-container { background: #0a0a0a !important; outline: 0; }
+.leaflet-popup-content-wrapper { 
+    background: rgba(10, 10, 10, 0.98) !important; color: white !important; 
+    border-radius: 4px !important; padding: 0 !important; border: 1px solid var(--ferro-orange); 
+}
 .map-label-header { padding: 10px 15px; border-bottom: 1px solid rgba(255,255,255,0.1); font-weight: 900; text-transform: uppercase; font-size: 14px; display: flex; justify-content: space-between; }
 .map-label-body { padding: 12px 15px; font-size: 12px; }
 
-/* --- GANTT --- */
-#timeline-viewport { width: 1480px; background: #0d0d0d; position: relative; }
-.year-block { width: 110px; flex-shrink: 0; padding: 14px 0; text-align: center; font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900; }
-.timeline-row { display: flex; min-height: 52px; border-bottom: 1px solid #161616; position: relative; }
-.ut-label { width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 45; padding-left: 20px; font-size: 13px; font-weight: 900; color: var(--ferro-orange); border-right: 2px solid var(--ferro-orange); display: flex; align-items: center; text-transform: uppercase; }
+/* --- GANTT CORE --- */
+#timeline-viewport { width: 1480px; background: #0d0d0d; position: relative; min-height: 100%; }
+.year-block { width: 110px; flex-shrink: 0; padding: 15px 0; text-align: center; font-size: 11px; color: #555; border-left: 1px solid #222; font-weight: 900; }
+.timeline-row { display: flex; min-height: 52px; border-bottom: 1px solid #161616; align-items: center; }
+.ut-label { width: 160px; position: sticky; left: 0; background: #0d0d0d; z-index: 45; padding-left: 20px; font-size: 13px; font-weight: 900; color: var(--ferro-orange); border-right: 2px solid var(--ferro-orange); height: 100%; display: flex; align-items: center; text-transform: uppercase; }
 .bar-box { position: relative; flex: 1; height: 100%; background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px); background-size: 110px 100%; }
 
 /* --- BARRAS --- */
-.bar { position: absolute; height: 30px; border-radius: 2px; color: #fff; font-size: 12px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); white-space: nowrap; cursor: crosshair; }
+.bar { position: absolute; height: 30px; border-radius: 2px; color: #fff; font-size: 13px; font-weight: 900; display: flex; align-items: center; padding: 0 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.5); white-space: nowrap; transition: 0.1s; cursor: crosshair; }
 .bar-short { overflow: visible !important; }
 .bar-short span { position: relative; left: 0; color: #fff; text-shadow: 1px 1px 2px #000; }
 
@@ -33,20 +37,21 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Inter'
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-/* Verde Planificación */
+/* Verde Planificación - Gana prioridad */
 .bar.bar-futura { 
     background: var(--plan-green) !important; 
     color: #000 !important; 
-    border: 1px solid rgba(0,0,0,0.2) !important;
+    border: 1px solid rgba(0,0,0,0.1) !important; 
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.2) !important;
 }
 
 .bar.tdr { background: linear-gradient(90deg, #333, #555) !important; color: #bbb !important; border: 1px solid #444; }
 .bar-repa { background: repeating-linear-gradient(45deg, #1a1a1a, #1a1a1a 10px, #333 10px, #333 20px) !important; border: 1px solid #555 !important; color: #888 !important; }
 
-#today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4444; z-index: 40; }
+#today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4444; z-index: 40; pointer-events: none; }
 .today-label { position: absolute; top: 0; left: 5px; color: #ff4444; font-size: 9px; font-weight: 900; }
 
-/* --- CUADRO BONITO --- */
+/* --- TOOLTIP INDUSTRIAL (RECUADRO COMPLETO) --- */
 #custom-tooltip {
     position: fixed; display: none; background: rgba(10, 10, 10, 0.98); 
     color: white; padding: 18px; border-radius: 4px; font-size: 11px; z-index: 9999; 
