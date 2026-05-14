@@ -3,83 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TGN Control | Gestión de Flota</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Ferro Mecánica | Control de Gestión</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Audiowide&family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
-<body class="bg-[#0a0a0a] text-slate-100 font-['Inter'] overflow-hidden h-screen flex">
-
-    <aside class="w-72 bg-black border-r border-white/5 flex flex-col z-[2000] shrink-0">
-        <div class="p-6 border-b border-white/5 bg-zinc-900/10 flex justify-center">
-            <img src="tgn_h.png" alt="TGN" class="w-full h-auto object-contain px-2">
-        </div>
-
-        <div class="flex-1 p-4 space-y-2 mt-4">
-            <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em] px-4 block mb-4 opacity-50">Monitoreo Técnico</span>
-            
-            <button onclick="showView('home-view')" class="nav-btn active w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 bg-white/5 hover:bg-white/10 transition-all group">
-                <i class="fas fa-map-marked-alt text-[#E48A06]"></i>
-                <span class="font-black uppercase text-[11px] tracking-widest">Mapa de Activos</span>
-            </button>
-
-            <button onclick="showView('gantt-view', 'M100')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
-                <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL M100</span>
-            </button>
-
-            <button onclick="showView('gantt-view', 'T70')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
-                <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL T70</span>
-            </button>
-
-            <button onclick="showView('gantt-view', 'T60')" class="nav-btn w-full flex items-center gap-4 px-4 py-4 rounded-sm border border-white/5 hover:border-[#E48A06]/40 transition-all group">
-                <i class="fas fa-layer-group opacity-30 group-hover:opacity-100"></i>
-                <span class="font-black uppercase text-[11px] tracking-widest">Plan OHL T60</span>
-            </button>
-        </div>
-
-        <div class="p-6 border-t border-white/5">
-            <div id="status" class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest text-center">Sincronizando...</div>
-        </div>
-    </aside>
-
-    <main class="flex-1 relative bg-black">
+<body>
+    <nav id="sidebar">
+        <div class="logo">FERRO MECÁNICA</div>
+        <button class="nav-btn active" onclick="showView('home-view')">MAPA TGN</button>
+        <button class="nav-btn" onclick="showView('gantt-view', 'M100')">PLAN M100</button>
+        <button class="nav-btn" onclick="showView('gantt-view', 'T70')">PLAN T70</button>
+        <button class="nav-btn" onclick="showView('gantt-view', 'T60')">PLAN T60</button>
         
-        <div id="home-view" class="page-view absolute inset-0 z-10 active">
-            <div id="map" class="w-full h-full"></div>
-        </div>
+        <button id="btn-nuevo-mov" onclick="abrirModal()">+ NUEVO MOVIMIENTO</button>
 
-        <div id="gantt-view" class="page-view absolute inset-0 z-20 hidden bg-[#0d0d0d] flex flex-col">
-            <div class="p-8 border-b border-white/5 flex justify-between items-end bg-black/20">
-                <div>
-                    <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Proyección Estratégica</span>
-                    <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1 text-white">PLAN OHL</h2>
-                </div>
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest pb-1 text-right">
-                    Vista de 12 Años<br>Periodo 2020 - 2031
-                </div>
-            </div>
+        <div id="status">CONECTANDO...</div>
+    </nav>
 
-            <div id="gantt-wrapper" class="flex-1 overflow-auto bg-[#0d0d0d]">
-                <div id="timeline-viewport" class="relative min-h-full">
-                    <div id="today-line">
-                        <span class="today-label">HOY</span>
-                    </div>
-                    
-                    <div id="timeline-scale" class="flex sticky top-0 z-50 bg-[#080808] border-b border-white/5 ml-[160px]"></div>
-                    
-                    <div id="gantt-rows" class="pt-4 pb-24"></div>
-                </div>
-            </div>
+    <div id="home-view" class="page-view active">
+        <div id="map"></div>
+    </div>
+
+    <div id="gantt-view" class="page-view">
+        <div id="gantt-container">
+            <div id="timeline-scale"></div>
+            <div id="gantt-rows"></div>
+            <div id="today-line"></div>
         </div>
-    </main>
+    </div>
+
+    <div id="modal-carga" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>REGISTRAR MOVIMIENTO</h3>
+                <span class="close" onclick="cerrarModal()">&times;</span>
+            </div>
+            <form id="form-movimiento">
+                <div class="form-group">
+                    <label>PLANTA (UT)</label>
+                    <input type="text" id="form-ut" placeholder="Ej: BEA-TC04" required>
+                </div>
+                <div class="form-group">
+                    <label>FECHA MOVIMIENTO</label>
+                    <input type="date" id="form-fecha" required>
+                </div>
+                <div class="form-group">
+                    <label>S/N QUE INGRESA</label>
+                    <input type="text" id="form-sn-in" placeholder="Ej: 0449B" required>
+                </div>
+                <div class="form-group">
+                    <label>ORIGEN IN</label>
+                    <select id="form-origen">
+                        <option value="TDR">TDR (Muleto)</option>
+                        <option value="OTRA UT">OTRA PLANTA</option>
+                        <option value="USA">USA</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>DESTINO OUT</label>
+                    <select id="form-destino">
+                        <option value="OHL USA">OHL USA (Reparación)</option>
+                        <option value="TDR">TDR (Muleto)</option>
+                    </select>
+                </div>
+                <button type="submit" id="btn-guardar">GUARDAR EN SISTEMA</button>
+            </form>
+        </div>
+    </div>
 
     <div id="custom-tooltip"></div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
