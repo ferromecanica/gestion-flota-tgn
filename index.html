@@ -46,7 +46,7 @@
         </div>
     </aside>
 
-    <main class="flex-1 relative bg-black">
+    <main class="flex-1 relative bg-black" onclick="resetTracking()">
         <div id="home-view" class="page-view absolute inset-0 z-10 active">
             <div id="map" class="w-full h-full"></div>
         </div>
@@ -56,6 +56,9 @@
                 <div>
                     <span class="text-[#E48A06] font-black text-[10px] uppercase tracking-[0.3em]">Proyección Estratégica</span>
                     <h2 id="gantt-title" class="font-audiowide text-4xl uppercase mt-1 text-white">PLAN OHL</h2>
+                </div>
+                <div class="text-[10px] font-black text-white/40 uppercase tracking-widest pb-1 text-right italic">
+                    Haga clic en una barra para rastrear el activo
                 </div>
             </div>
 
