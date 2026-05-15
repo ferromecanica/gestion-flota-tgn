@@ -61,7 +61,12 @@ async function cargarDatosMaestros() {
             return { ut: String(f["UT"] || ""), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
         });
 
-        (dataPlan.records || []).forEach(p => {
+        // FIX: ORDENAR PLANIFICACIÓN CRONOLÓGICAMENTE PARA EVITAR BARRAS INFINITAS
+        const registrosPlan = (dataPlan.records || []).sort((a, b) => {
+            return new Date(a.fields["FECHA MOVIMIENTO"]).getTime() - new Date(b.fields["FECHA MOVIMIENTO"]).getTime();
+        });
+
+        registrosPlan.forEach(p => {
             const f = p.fields;
             const utEvento = String(f["UT"] || "");
             const fechaSwap = f["FECHA MOVIMIENTO"];
@@ -71,13 +76,17 @@ async function cargarDatosMaestros() {
             const snEntra = f["S/N IN"] || "POR DEFINIR";
             const origenIn = String(f["ORIGEN IN"] || "").toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
-            const plantaCode = utEvento.substring(0, 3);
+            // Soporte para plantas largas como JERII
+            const plantaCode = utEvento.split('-')[0];
 
+            // 1. SI VIENE DEL TDR: Cerrar la estancia en TDR ese día
             if (origenIn.includes("TDR")) {
-                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
+                // Buscamos la estancia que NO tenga fecha de fin (la activa)
+                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR") && !r.fin);
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
+            // 2. CORTAR MÁQUINA QUE SALE DE LA UNIDAD
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
@@ -92,7 +101,6 @@ async function cargarDatosMaestros() {
                     registros.push({ ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
                 }
             }
-            // MÁQUINA PLANIFICADA: muleto es false si ya es una instalación operativa, solo es tdr si está EN EL TDR
             registros.push({ ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null, familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: false, proxOHL: "Planificado", horas: "-", esPlan: true });
         });
 
@@ -143,26 +151,26 @@ function dibujarGantt(registros) {
                 }
 
                 let colorHex = "#E48A06";
-                if (m.familia.includes("M100")) colorHex = "#1e40af";
-                if (m.familia.includes("T60")) colorHex = "#0d9488";
+                const fam = (m.familia || "").toUpperCase();
+                if (fam.includes("M100")) colorHex = "#1e40af";
+                if (fam.includes("T60")) colorHex = "#0d9488";
                 if (m.esPlan) colorHex = "#22c55e";
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
-                bar.setAttribute('data-sn', m.sn); // Para el rastreo
+                bar.setAttribute('data-sn', m.sn);
                 if (width < 65) bar.classList.add('bar-short');
                 
-                if(m.familia.includes("M100")) bar.classList.add('bar-m100');
-                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
-                if(m.familia.includes("T60")) bar.classList.add('bar-t60');
+                if(fam.includes("M100")) bar.classList.add('bar-m100');
+                if(fam.includes("T70")) bar.classList.add('bar-t70');
+                if(fam.includes("T60")) bar.classList.add('bar-t60');
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; 
                 bar.style.top = `${11 + (laneIndex * 35)}px`;
                 bar.innerHTML = `<span>${m.sn}</span>`;
 
-                // --- EVENTOS ---
                 bar.onclick = (e) => {
-                    e.stopPropagation(); // Evita que el fondo resetee el tracking inmediatamente
+                    e.stopPropagation();
                     highlightAsset(m.sn);
                 };
 
@@ -186,17 +194,12 @@ function dibujarGantt(registros) {
     });
 }
 
-// FUNCIÓN DE RASTREO GERENCIAL
 function highlightAsset(sn) {
     const rowsContainer = document.getElementById('gantt-rows');
     rowsContainer.classList.add('tracking-mode');
-    
     document.querySelectorAll('.bar').forEach(b => {
-        if (b.getAttribute('data-sn') === sn) {
-            b.classList.add('highlighted');
-        } else {
-            b.classList.remove('highlighted');
-        }
+        if (b.getAttribute('data-sn') === sn) b.classList.add('highlighted');
+        else b.classList.remove('highlighted');
     });
 }
 
@@ -219,7 +222,8 @@ function showView(viewId, familia = null) {
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
     else {
         document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`;
-        dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa));
+        const famUp = familia ? familia.toUpperCase() : "";
+        dibujarGantt(todosLosRegistros.filter(r => (familia ? (r.familia || "").includes(famUp) : true)));
     }
 }
 
@@ -228,12 +232,14 @@ function dibujarMapa(registros) {
     const conteo = {};
     registros.forEach(r => {
         if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
-        const code = r.ut.substring(0, 3);
+        const code = r.ut.split('-')[0];
         const coords = coordenadasTGN[code];
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
-            let color = "#E48A06"; if (r.familia.includes("M100")) color = "#1e40af"; if (r.familia.includes("T60")) color = "#0d9488";
+            let color = "#E48A06"; 
+            const fam = (r.familia || "").toUpperCase();
+            if (fam.includes("M100")) color = "#1e40af"; if (fam.includes("T60")) color = "#0d9488";
             const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
             L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
         }
