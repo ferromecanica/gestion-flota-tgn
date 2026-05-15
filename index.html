@@ -10,9 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-[#0a0a0a] text-slate-100 font-['Inter'] overflow-hidden h-screen flex">
+<body class="bg-[#0a0a0a] text-slate-100 font-['Inter'] overflow-hidden h-screen flex" onclick="resetTracking()">
 
-    <aside class="w-72 bg-black border-r border-white/5 flex flex-col z-[2000] shrink-0">
+    <aside class="w-72 bg-black border-r border-white/5 flex flex-col z-[2000] shrink-0" onclick="event.stopPropagation()">
         <div class="p-6 border-b border-white/5 bg-zinc-900/10 flex justify-center">
             <img src="tgn_h.png" alt="TGN" class="w-full h-auto object-contain px-2">
         </div>
@@ -46,7 +46,7 @@
         </div>
     </aside>
 
-    <main class="flex-1 relative bg-black" onclick="resetTracking()">
+    <main class="flex-1 relative bg-black">
         <div id="home-view" class="page-view absolute inset-0 z-10 active">
             <div id="map" class="w-full h-full"></div>
         </div>
