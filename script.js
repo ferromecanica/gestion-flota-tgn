@@ -8,7 +8,7 @@ const T_TURB = 'TURBINAS';
 const coordenadasTGN = {
     "LMR": [-35.1070, -66.8301], "PUE": [-37.5477, -67.7343], "COC": [-36.3663, -67.0747],
     "BEA": [-33.7947, -66.6455], "CHA": [-33.5766, -65.1026], "LCA": [-33.3240, -63.5604],
-    "TIO": [-32.2904, -63.2817], "JER": [-32.8688, -61.0766], "JERII": [-32.8688, -61.0766], // Soporte JERII
+    "TIO": [-32.2904, -63.2817], "JER": [-32.8688, -61.0766], "JERII": [-32.8688, -61.0766],
     "PIC": [-23.4114, -64.3337], "LUM": [-25.2057, -64.9460], "DEA": [-30.3768, -64.3729], 
     "LAV": [-27.9003, -64.8142], "CAN": [-26.1248, -65.1696], "BEL": [-32.6302, -62.2319], 
     "LEO": [-32.6302, -62.2319], "BAL": [-33.1427, -62.3057], "SJA": [-38.0740, -69.0645]
@@ -25,10 +25,9 @@ const viewportWidth = 1320;
 
 function init() {
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica © 2026' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica' }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
     
-    // Posición HOY
     const hoyMillis = new Date().getTime();
     const hoyPos = ((hoyMillis - minDate) / totalRange) * viewportWidth + 160;
     const line = document.getElementById('today-line');
@@ -52,26 +51,19 @@ async function cargarDatosMaestros() {
 
         diccionarioTurbinas = {};
         (dataTurb.records || []).forEach(t => {
-            const f = t.fields;
+            const f = t.fields || {};
             diccionarioTurbinas[t.id] = { snReal: f["S/N"] || "S/N", proxOHL: f["Próximo OHL"] || null, horas: f["Hrs Actual"] || "0", esMuleto: f["Muleto TGN?"] === true, familia: f["FAMILIA"] || "" };
         });
 
         let registros = (dataMov.records || []).map(r => {
-            const f = r.fields;
+            const f = r.fields || {};
             const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
             const info = diccionarioTurbinas[snRef] || {};
-            return { 
-                ut: String(f["UT"] || "").trim(), 
-                sn: info.snReal || String(f["S/N"] || "S/N"), 
-                inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], 
-                familia: String(f["FAMILIA"] || info.familia || "").toUpperCase(), 
-                muleto: info.esMuleto || false, 
-                proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" 
-            };
+            return { ut: String(f["UT"] || "").trim(), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || info.familia || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
         });
 
         (dataPlan.records || []).forEach(p => {
-            const f = p.fields;
+            const f = p.fields || {};
             const utEvento = String(f["UT"] || "").trim();
             const fechaSwap = f["FECHA MOVIMIENTO"];
             if(!fechaSwap || !utEvento) return;
@@ -80,7 +72,7 @@ async function cargarDatosMaestros() {
             const snEntra = f["S/N IN"] || "POR DEFINIR";
             const origenIn = String(f["ORIGEN IN"] || "").toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
-            const plantaCode = utEvento.split('-')[0]; // Detecta JERII correctamente
+            const plantaCode = utEvento.split('-')[0];
 
             if (origenIn.includes("TDR")) {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
@@ -170,7 +162,6 @@ function dibujarGantt(registros) {
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 bar.setAttribute('data-sn', m.sn);
                 if (width < 65) bar.classList.add('bar-short');
-                
                 if(fam.includes("M100")) bar.classList.add('bar-m100');
                 if(fam.includes("T70")) bar.classList.add('bar-t70');
                 if(fam.includes("T60")) bar.classList.add('bar-t60');
@@ -228,7 +219,8 @@ function showView(viewId, familia = null) {
     if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
     else {
         document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`;
-        dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia.toUpperCase()) : true)));
+        const famUp = familia ? familia.toUpperCase() : "";
+        dibujarGantt(todosLosRegistros.filter(r => (familia ? (r.familia || "").includes(famUp) : true)));
     }
 }
 
@@ -236,6 +228,7 @@ function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
     registros.forEach(r => {
+        if (!r || !r.ut) return;
         if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
         const code = r.ut.split('-')[0];
         const coords = coordenadasTGN[code];
