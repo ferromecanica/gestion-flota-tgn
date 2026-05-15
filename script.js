@@ -25,8 +25,14 @@ const viewportWidth = 1320;
 
 function init() {
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica' }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica © 2026' }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
+    
+    // Restaurar línea de HOY
+    const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
+    const line = document.getElementById('today-line');
+    if(line) line.style.left = hoyPos + 'px';
+
     cargarDatosMaestros();
 }
 
@@ -53,7 +59,7 @@ async function cargarDatosMaestros() {
             const f = r.fields;
             const snRef = Array.isArray(f["S/N"]) ? f["S/N"][0] : null;
             const info = diccionarioTurbinas[snRef] || {};
-            return { ut: String(f["UT"] || ""), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
+            return { ut: String(f["UT"] || ""), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || info.familia || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
         });
 
         (dataPlan.records || []).forEach(p => {
@@ -66,15 +72,13 @@ async function cargarDatosMaestros() {
             const snEntra = f["S/N IN"] || "POR DEFINIR";
             const origenIn = String(f["ORIGEN IN"] || "").toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
-            const plantaCode = utEvento.substring(0, 3);
+            const familiaRef = String(f["FAMILIA"] || "").toUpperCase();
 
-            // 1. SI VIENE DEL TDR: Lo quitamos del TDR ese día
             if (origenIn.includes("TDR")) {
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
-            // 2. CORTAR LA MÁQUINA QUE SALE DE LA UNIDAD
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
@@ -84,13 +88,12 @@ async function cargarDatosMaestros() {
                 if (destinoOut.includes("OHL USA")) {
                     let fFinRepa = new Date(fechaSwap); fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                     registros.push({ ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap, fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia, muleto: false, horas: maquinaAnterior.horas, esRepa: true });
-                    registros.push({ ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
+                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
                 } else if (destinoOut.includes("TDR")) {
-                    registros.push({ ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
+                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
                 }
             }
-            // Agregar la entrada planificada
-            registros.push({ ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null, familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: origenIn.includes("TDR"), proxOHL: "Planificado", horas: "-", esPlan: true });
+            registros.push({ ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null, familia: familiaRef, muleto: origenIn.includes("TDR"), proxOHL: "Planificado", horas: "-", esPlan: true });
         });
 
         todosLosRegistros = registros;
@@ -123,11 +126,8 @@ function dibujarGantt(registros) {
         let lanes = [];
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
-            
-            // LÓGICA DE FIN: En TDR es infinito. En UT es hasta proxOHL o hasta el Swap.
             let visualEnd;
             if (ut.includes("-TDR")) {
-                // Si está en el TDR, la barra va hasta el fin del gráfico o hasta que sea movida
                 visualEnd = m.fin ? new Date(m.fin).getTime() : maxDate;
             } else {
                 const proxOHLMillis = (m.proxOHL && !["S/D", "Planificado", "Disponible"].includes(m.proxOHL)) ? new Date(m.proxOHL).getTime() : null;
@@ -138,14 +138,11 @@ function dibujarGantt(registros) {
                     visualEnd = proxOHLMillis || maxDate;
                 }
             }
-            
-            start = Math.max(start, minDate);
-            visualEnd = Math.min(visualEnd, maxDate);
+            start = Math.max(start, minDate); visualEnd = Math.min(visualEnd, maxDate);
 
             if (visualEnd > start) {
                 const left = ((start - minDate) / totalRange) * viewportWidth;
                 const width = ((visualEnd - start) / totalRange) * viewportWidth;
-                
                 let laneIndex = 0;
                 if (ut.includes("-TDR")) {
                     laneIndex = lanes.findIndex(laneEnd => laneEnd <= start);
@@ -153,17 +150,17 @@ function dibujarGantt(registros) {
                 }
 
                 let colorHex = "#E48A06";
-                if (m.familia.includes("M100")) colorHex = "#1e40af";
-                if (m.familia.includes("T60")) colorHex = "#0d9488";
+                const fam = (m.familia || "").toUpperCase();
+                if (fam.includes("M100")) colorHex = "#1e40af";
+                if (fam.includes("T60")) colorHex = "#0d9488";
                 if (m.esPlan) colorHex = "#22c55e";
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
                 if (width < 65) bar.classList.add('bar-short');
-                
-                if(m.familia.includes("M100")) bar.classList.add('bar-m100');
-                if(m.familia.includes("T70")) bar.classList.add('bar-t70');
-                if(m.familia.includes("T60")) bar.classList.add('bar-t60');
+                if (fam.includes("M100")) bar.classList.add('bar-m100');
+                if (fam.includes("T70")) bar.classList.add('bar-t70');
+                if (fam.includes("T60")) bar.classList.add('bar-t60');
                 
                 bar.style.left = `${left}px`; bar.style.width = `${width}px`; 
                 bar.style.top = `${11 + (laneIndex * 35)}px`;
@@ -196,10 +193,42 @@ function formatMMYYYY(dateString) {
 
 function showView(viewId, familia = null) {
     document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('active'); if (btn.innerText.includes(familia || 'MAPA')) btn.classList.add('active'); });
-    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
-    document.getElementById(viewId).classList.add('active');
-    if (viewId === 'home-view') setTimeout(() => map.invalidateSize(), 200);
-    else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa)); }
+    document.querySelectorAll('.page-view').forEach(v => { v.classList.remove('active'); v.classList.add('hidden'); });
+    
+    const target = document.getElementById(viewId);
+    target.classList.add('active');
+    target.classList.remove('hidden');
+
+    if (viewId === 'home-view') {
+        setTimeout(() => map.invalidateSize(), 200);
+    } else {
+        document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`;
+        // FILTRO ESTRICTO: Solo mostramos la familia seleccionada (y sus reparaciones)
+        const registrosFiltrados = todosLosRegistros.filter(r => {
+            const fam = (r.familia || "").toUpperCase();
+            return fam.includes(familia.toUpperCase());
+        });
+        dibujarGantt(registrosFiltrados);
+    }
 }
 
+function dibujarMapa(registros) {
+    markersGroup.clearLayers();
+    const conteo = {};
+    registros.forEach(r => {
+        if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
+        const code = r.ut.substring(0, 3);
+        const coords = coordenadasTGN[code];
+        if (coords) {
+            if (!conteo[code]) conteo[code] = 0;
+            const shift = conteo[code] * 0.045; conteo[code]++;
+            let color = "#E48A06"; 
+            const fam = (r.familia || "").toUpperCase();
+            if (fam.includes("M100")) color = "#1e40af"; 
+            if (fam.includes("T60")) color = "#0d9488";
+            const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
+            L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
+        }
+    });
+}
 window.onload = init;
