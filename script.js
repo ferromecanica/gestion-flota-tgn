@@ -27,9 +27,6 @@ function init() {
     map = L.map('map', { zoomSnap: 0.5 }).setView([-34.6, -63.6], 5);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'Ferro Mecánica' }).addTo(map);
     markersGroup = L.layerGroup().addTo(map);
-    const hoyPos = ((new Date().getTime() - minDate) / totalRange) * viewportWidth + 160;
-    const line = document.getElementById('today-line');
-    if(line) line.style.left = hoyPos + 'px';
     cargarDatosMaestros();
 }
 
@@ -66,24 +63,34 @@ async function cargarDatosMaestros() {
             if(!fechaSwap) return;
 
             const fechaMillis = new Date(fechaSwap).getTime();
+            const snEntra = f["S/N IN"] || "POR DEFINIR";
+            const origenIn = String(f["ORIGEN IN"] || "").toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
+            const plantaCode = utEvento.substring(0, 3);
 
+            // 1. SI VIENE DEL TDR: Lo quitamos del TDR ese día
+            if (origenIn.includes("TDR")) {
+                let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR"));
+                if (rTDR) rTDR.fin = fechaSwap;
+            }
+
+            // 2. CORTAR LA MÁQUINA QUE SALE DE LA UNIDAD
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
 
             if (maquinaAnterior) {
-                // Seteamos el fin lógico del activo, pero visualmente morirá en el proxOHL
-                maquinaAnterior.fin = fechaSwap; 
+                maquinaAnterior.fin = fechaSwap;
                 if (destinoOut.includes("OHL USA")) {
                     let fFinRepa = new Date(fechaSwap); fFinRepa.setMonth(fFinRepa.getMonth() + 6);
                     registros.push({ ut: "REPA USA", sn: maquinaAnterior.sn, inicio: fechaSwap, fin: fFinRepa.toISOString(), familia: maquinaAnterior.familia, muleto: false, horas: maquinaAnterior.horas, esRepa: true });
-                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
+                    registros.push({ ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, inicio: fFinRepa.toISOString(), fin: null, familia: maquinaAnterior.familia, muleto: true, horas: "0 (REPARADA)", proxOHL: "Disponible" });
                 } else if (destinoOut.includes("TDR")) {
-                    registros.push({ ut: `${utEvento.substring(0,3)}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
+                    registros.push({ ut: `${plantaCode}-TDR`, sn: maquinaAnterior.sn, inicio: fechaSwap, fin: null, familia: maquinaAnterior.familia, muleto: true, horas: maquinaAnterior.horas, proxOHL: maquinaAnterior.proxOHL });
                 }
             }
-            registros.push({ ut: utEvento, sn: f["S/N IN"] || "EXCHANGE", inicio: fechaSwap, fin: null, familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: String(f["ORIGEN IN"] || "").includes("TDR"), proxOHL: "Planificado", horas: "-", esPlan: true });
+            // Agregar la entrada planificada
+            registros.push({ ut: utEvento, sn: snEntra, inicio: fechaSwap, fin: null, familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: origenIn.includes("TDR"), proxOHL: "Planificado", horas: "-", esPlan: true });
         });
 
         todosLosRegistros = registros;
@@ -96,7 +103,6 @@ function dibujarGantt(registros) {
     const container = document.getElementById('gantt-rows');
     const tooltip = document.getElementById('custom-tooltip');
     container.innerHTML = '';
-    
     const scale = document.getElementById('timeline-scale'); scale.innerHTML = ''; 
     for (let y = 2020; y <= 2031; y++) scale.innerHTML += `<div class="year-block">${y}</div>`;
 
@@ -112,26 +118,25 @@ function dibujarGantt(registros) {
         row.appendChild(label);
         const barBox = document.createElement('div'); barBox.className = 'bar-box';
 
-        // ORDENAMOS POR INICIO ANTES DE DIBUJAR LANES
-        grupos[ut].sort((a, b) => {
-            const startA = a.inicio ? new Date(a.inicio).getTime() : minDate;
-            const startB = b.inicio ? new Date(b.inicio).getTime() : minDate;
-            return startA - startB;
-        });
+        grupos[ut].sort((a, b) => (new Date(a.inicio || minDate).getTime()) - (new Date(b.inicio || minDate).getTime()));
 
         let lanes = [];
         grupos[ut].forEach(m => {
             let start = m.inicio ? new Date(m.inicio).getTime() : minDate;
             
-            // LÓGICA DE FIN VISUAL: Muere en proxOHL a menos que el fin real sea anterior
-            const proxOHLMillis = (m.proxOHL && !["S/D", "Planificado", "Disponible"].includes(m.proxOHL)) ? new Date(m.proxOHL).getTime() : null;
+            // LÓGICA DE FIN: En TDR es infinito. En UT es hasta proxOHL o hasta el Swap.
             let visualEnd;
-            
-            if (m.fin) {
-                const finRealMillis = new Date(m.fin).getTime();
-                visualEnd = (proxOHLMillis && finRealMillis > proxOHLMillis) ? proxOHLMillis : finRealMillis;
+            if (ut.includes("-TDR")) {
+                // Si está en el TDR, la barra va hasta el fin del gráfico o hasta que sea movida
+                visualEnd = m.fin ? new Date(m.fin).getTime() : maxDate;
             } else {
-                visualEnd = proxOHLMillis || maxDate;
+                const proxOHLMillis = (m.proxOHL && !["S/D", "Planificado", "Disponible"].includes(m.proxOHL)) ? new Date(m.proxOHL).getTime() : null;
+                if (m.fin) {
+                    const finRealMillis = new Date(m.fin).getTime();
+                    visualEnd = (proxOHLMillis && finRealMillis > proxOHLMillis) ? proxOHLMillis : finRealMillis;
+                } else {
+                    visualEnd = proxOHLMillis || maxDate;
+                }
             }
             
             start = Math.max(start, minDate);
@@ -148,9 +153,9 @@ function dibujarGantt(registros) {
                 }
 
                 let colorHex = "#E48A06";
-                if (m.familia === "M100") colorHex = "#1e40af";
-                if (m.familia === "T60") colorHex = "#0d9488";
-                if (m.esPlan) colorHex = "#22c55e"; // Color verde en tooltip
+                if (m.familia.includes("M100")) colorHex = "#1e40af";
+                if (m.familia.includes("T60")) colorHex = "#0d9488";
+                if (m.esPlan) colorHex = "#22c55e";
 
                 const bar = document.createElement('div');
                 bar.className = `bar ${m.muleto ? 'tdr' : ''} ${m.esPlan ? 'bar-futura' : ''} ${m.esRepa ? 'bar-repa' : ''}`;
@@ -197,20 +202,4 @@ function showView(viewId, familia = null) {
     else { document.getElementById('gantt-title').innerText = `PLAN OHL ${familia || ''}`; dibujarGantt(todosLosRegistros.filter(r => (familia ? r.familia.includes(familia) : true) || r.esRepa)); }
 }
 
-function dibujarMapa(registros) {
-    markersGroup.clearLayers();
-    const conteo = {};
-    registros.forEach(r => {
-        if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
-        const code = r.ut.substring(0, 3);
-        const coords = coordenadasTGN[code];
-        if (coords) {
-            if (!conteo[code]) conteo[code] = 0;
-            const shift = conteo[code] * 0.045; conteo[code]++;
-            let color = "#E48A06"; if (r.familia.includes("M100")) color = "#1e40af"; if (r.familia.includes("T60")) color = "#0d9488";
-            const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
-            L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
-        }
-    });
-}
 window.onload = init;
