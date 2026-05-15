@@ -22,26 +22,22 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Inter'
 .bar-short { overflow: visible !important; }
 .bar-short span { position: relative; left: 0; color: #fff; text-shadow: 1px 1px 2px #000; }
 
-/* COLORES */
 .bar-m100 { background: linear-gradient(90deg, #1e40af, #3b82f6) !important; }
 .bar-t70 { background: linear-gradient(90deg, #E48A06, #ffae33) !important; color: #000 !important; }
 .bar-t60 { background: linear-gradient(90deg, #0d9488, #2dd4bf) !important; }
 
-/* Verde Planificación (Prioridad Máxima) */
 .bar.bar-futura { 
     background: var(--plan-green) !important; 
     color: #000 !important; 
     border: 1px solid rgba(0,0,0,0.1) !important; 
 }
 
-/* Gris TDR (Prioridad Secundaria) */
 .bar.tdr { 
     background: linear-gradient(90deg, #333, #555) !important; 
     color: #bbb !important; 
     border: 1px solid #444; 
 }
 
-/* MODO RASTREO (Gerencial) */
 #gantt-rows.tracking-mode .bar { opacity: 0.15; filter: grayscale(0.8); }
 #gantt-rows.tracking-mode .bar.highlighted { 
     opacity: 1 !important; 
@@ -54,7 +50,6 @@ body { margin: 0; background: var(--dark-bg); color: white; font-family: 'Inter'
 #today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4444; z-index: 40; pointer-events: none; }
 .today-label { position: absolute; top: 0; left: 5px; color: #ff4444; font-size: 9px; font-weight: 900; }
 
-/* TOOLTIP INDUSTRIAL */
 #custom-tooltip {
     position: fixed; display: none; background: rgba(10, 10, 10, 0.98); 
     color: white; padding: 18px; border-radius: 4px; font-size: 11px; z-index: 9999; 
