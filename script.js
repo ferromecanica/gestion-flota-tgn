@@ -61,7 +61,6 @@ async function cargarDatosMaestros() {
             return { ut: String(f["UT"] || ""), sn: info.snReal || String(f["S/N"] || "S/N"), inicio: f["FECHA INICIO"], fin: f["FECHA FIN"], familia: String(f["FAMILIA"] || "").toUpperCase(), muleto: info.esMuleto || false, proxOHL: info.proxOHL || "S/D", horas: info.horas || "0" };
         });
 
-        // FIX: ORDENAR PLANIFICACIÓN CRONOLÓGICAMENTE PARA EVITAR BARRAS INFINITAS
         const registrosPlan = (dataPlan.records || []).sort((a, b) => {
             return new Date(a.fields["FECHA MOVIMIENTO"]).getTime() - new Date(b.fields["FECHA MOVIMIENTO"]).getTime();
         });
@@ -76,17 +75,13 @@ async function cargarDatosMaestros() {
             const snEntra = f["S/N IN"] || "POR DEFINIR";
             const origenIn = String(f["ORIGEN IN"] || "").toUpperCase();
             const destinoOut = String(f["DESTINO OUT"] || "").toUpperCase();
-            // Soporte para plantas largas como JERII
             const plantaCode = utEvento.split('-')[0];
 
-            // 1. SI VIENE DEL TDR: Cerrar la estancia en TDR ese día
             if (origenIn.includes("TDR")) {
-                // Buscamos la estancia que NO tenga fecha de fin (la activa)
                 let rTDR = registros.find(r => r.sn === snEntra && r.ut.includes("-TDR") && !r.fin);
                 if (rTDR) rTDR.fin = fechaSwap;
             }
 
-            // 2. CORTAR MÁQUINA QUE SALE DE LA UNIDAD
             let historialUT = registros.filter(r => r.ut === utEvento);
             historialUT.sort((a, b) => new Date(b.inicio).getTime() - new Date(a.inicio).getTime());
             let maquinaAnterior = historialUT.find(r => new Date(r.inicio).getTime() <= fechaMillis);
@@ -106,7 +101,16 @@ async function cargarDatosMaestros() {
 
         todosLosRegistros = registros;
         statusEl.innerText = `OK | ${todosLosRegistros.length} ITEMS`;
-        dibujarMapa(todosLosRegistros.filter(r => !r.fin || new Date(r.fin).getTime() >= new Date().getTime()));
+
+        // CORRECCIÓN: Filtrado estricto de tiempo real (Solo lo que está activo HOY)
+        const ahora = Date.now();
+        const activosHoy = todosLosRegistros.filter(r => {
+            const start = r.inicio ? new Date(r.inicio).getTime() : minDate;
+            const end = r.fin ? new Date(r.fin).getTime() : maxDate;
+            return start <= ahora && end >= ahora;
+        });
+
+        dibujarMapa(activosHoy);
     } catch (e) { statusEl.innerText = "ERROR CARGA"; }
 }
 
@@ -230,6 +234,8 @@ function showView(viewId, familia = null) {
 function dibujarMapa(registros) {
     markersGroup.clearLayers();
     const conteo = {};
+    const tooltip = document.getElementById('custom-tooltip');
+
     registros.forEach(r => {
         if ((r.ut.includes("-TDR") || r.ut === "REPA USA") && !r.muleto && !r.esRepa) return;
         const code = r.ut.split('-')[0];
@@ -237,11 +243,41 @@ function dibujarMapa(registros) {
         if (coords) {
             if (!conteo[code]) conteo[code] = 0;
             const shift = conteo[code] * 0.045; conteo[code]++;
+            
             let color = "#E48A06"; 
             const fam = (r.familia || "").toUpperCase();
-            if (fam.includes("M100")) color = "#1e40af"; if (fam.includes("T60")) color = "#0d9488";
-            const popupContent = `<div class="map-label-header" style="color:${color};"><span>${r.ut}</span><span style="font-size:10px; opacity:0.6;">S/N: ${r.sn}</span></div><div class="map-label-body"><div class="map-label-row"><span class="map-label-tag">Horas:</span><span class="map-label-val">${r.horas}</span></div><div class="map-label-row"><span class="map-label-tag">Próximo OHL:</span><span class="map-label-val">${formatMMYYYY(r.proxOHL)}</span></div></div>`;
-            L.circleMarker([coords[0] - shift, coords[1] + shift], { radius: 9, fillColor: color, color: "#fff", weight: 2, fillOpacity: 0.9 }).addTo(markersGroup).bindPopup(popupContent, { maxWidth: 250 });
+            if (fam.includes("M100")) color = "#1e40af"; 
+            if (fam.includes("T60")) color = "#0d9488";
+            
+            // CORRECCIÓN: Se crea el pin sin popup nativo de Leaflet
+            const marker = L.circleMarker([coords[0] - shift, coords[1] + shift], { 
+                radius: 9, 
+                fillColor: color, 
+                color: "#fff", 
+                weight: 2, 
+                fillOpacity: 0.9 
+            }).addTo(markersGroup);
+
+            // CORRECCIÓN: Eventos de Hover unificados con el estilo del Gantt
+            marker.on('mouseover', (e) => {
+                tooltip.style.display = 'block';
+                tooltip.style.borderColor = color;
+                tooltip.innerHTML = `
+                    <div class="tooltip-header" style="color:${color};">S/N: ${r.sn}</div>
+                    <div class="tooltip-row"><span class="tooltip-label">Horas:</span> <span class="tooltip-val">${r.horas}</span></div>
+                    <div class="tooltip-row"><span class="tooltip-label">Próximo OHL:</span> <span class="tooltip-val">${formatMMYYYY(r.proxOHL)}</span></div>
+                    <div class="tooltip-row"><span class="tooltip-label">Ubicación:</span> <span class="tooltip-val">${r.ut}</span></div>
+                `;
+            });
+
+            marker.on('mousemove', (e) => {
+                tooltip.style.left = (e.originalEvent.clientX + 15) + 'px';
+                tooltip.style.top = (e.originalEvent.clientY + 15) + 'px';
+            });
+
+            marker.on('mouseout', () => {
+                tooltip.style.display = 'none';
+            });
         }
     });
 }
